@@ -1,6 +1,6 @@
-import { Flame, AlertTriangle, XCircle, CheckCircle } from "lucide-react";
+import { AlertTriangle, Clock, Flame, XCircle } from "lucide-react";
 
-type StreakStatus = "active" | "warning" | "broken" | "maintained";
+type StreakStatus = "active" | "warning" | "broken" | "pending";
 
 export interface Streak {
   id: string;
@@ -26,10 +26,10 @@ const statusConfig: Record<
     label: "Time Running Out",
   },
   broken: { color: "var(--color-danger)", icon: XCircle, label: "Broken" },
-  maintained: {
-    color: "var(--color-success)",
-    icon: CheckCircle,
-    label: "Maintained",
+  pending: {
+    color: "var(--color-pending)",
+    icon: Clock,
+    label: "Pending",
   },
 };
 
@@ -40,7 +40,7 @@ export function StreakCard({ streak, onClick }: StreakCardProps) {
   return (
     <div
       onClick={() => onClick?.(streak)}
-      className="p-5 rounded-2xl bg-(--bg-surface) border border-(--border-subtle) hover:border-(--border-muted) transition-all cursor-pointer"
+      className="p-5 rounded-2xl bg-surface border border-border hover:border-border-hover transition-all cursor-pointer"
     >
       <div className="flex items-start justify-between mb-3">
         <div
@@ -63,11 +63,11 @@ export function StreakCard({ streak, onClick }: StreakCardProps) {
         <span className="text-3xl font-bold" style={{ color: config.color }}>
           {streak.days}
         </span>
-        <span className="text-(--text-secondary)">days</span>
+        <span className="text-text-secondary">days</span>
       </div>
 
       {streak.lastActivity && (
-        <p className="text-sm text-(--text-muted) mt-2">
+        <p className="text-sm text-text-muted mt-2">
           Last: {streak.lastActivity}
         </p>
       )}

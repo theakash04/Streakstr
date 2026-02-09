@@ -28,6 +28,10 @@
 
     /* Status */
     --color-danger: #dc2626;
+    --color-warning: #f59e0b;
+    --color-success: #16a34a;
+    --color-pending: #6366f1;
+    --color-fire: #ea580c;
   }
 
   .dark {
@@ -54,6 +58,10 @@
 
     /* Status */
     --color-danger: #ef4444;
+    --color-warning: #fbbf24;
+    --color-success: #22c55e;
+    --color-pending: #818cf8;
+    --color-fire: #f97316;
   }
 }
 
@@ -80,6 +88,10 @@
 
   /* Status */
   --color-danger: var(--color-danger);
+  --color-warning: var(--color-warning);
+  --color-success: var(--color-success);
+  --color-pending: var(--color-pending);
+  --color-fire: var(--color-fire);
 
   /* Fonts */
   --font-sans: Inter, system-ui, sans-serif;

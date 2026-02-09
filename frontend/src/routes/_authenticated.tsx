@@ -1,3 +1,4 @@
+import Sidebar from "@/components/sidebar";
 import { useAuth } from "@/context/AuthContext";
 import { createFileRoute, Outlet, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -29,8 +30,10 @@ function AuthenticatedLayout() {
   }
 
   return (
-    <main className="min-h-screen bg-background">
-      <Outlet />
-    </main>
+    <Sidebar>
+      <main className="bg-background">
+        <Outlet />
+      </main>
+    </Sidebar>
   );
 }

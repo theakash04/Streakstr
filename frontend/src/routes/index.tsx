@@ -93,7 +93,11 @@ function LandingPage() {
                   isLoading={isLoading}
                   className="h-14 px-8 text-lg font-bold  transition-all transform hover:-translate-y-1"
                 >
-                  {isAuthenticated && pubkey ? "Dashboard" : "Connect Nostr"}
+                  {isLoading
+                    ? "Connecting..."
+                    : isAuthenticated && pubkey
+                      ? "Dashboard"
+                      : "Connect Nostr"}
                 </Button>
                 <Button
                   variant="secondary"
