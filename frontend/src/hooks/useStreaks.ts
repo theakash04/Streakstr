@@ -14,11 +14,12 @@ export type StreakItem = {
   status: "pending" | "active" | "broken";
   currentCount: number;
   highestCount: number;
-  lastActivityAt?: string;
+  lastActivityAt: string;
   startedAt: string;
   endedAt?: string;
   createdAt: string;
   updatedAt: string;
+  history: number[]; // Array of timestamps for each day the streak was maintained will get it by streaks heastory need to be added in backend
 };
 
 async function fetchStreaks(): Promise<StreakItem[]> {

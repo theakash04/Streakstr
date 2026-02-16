@@ -12,6 +12,32 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    
+  # add postgress service
+  postgres:
+    image: postgres:alpine
+    container_name: crm-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: crm
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    
+    
 
 volumes:
   redis_data:
+  postgres_data:
+
+networks:
+  default:
+    name: crm-network
