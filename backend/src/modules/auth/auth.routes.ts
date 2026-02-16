@@ -4,26 +4,52 @@ import { challengeRequestSchema, verifyRequestSchema } from './auth.schema.ts';
 import { authMiddleware } from '../../middleware/auth.middleware.ts';
 
 export async function authRoutes(fastify: FastifyInstance) {
-  fastify.post('/challenge', {
-    schema: {
-      body: challengeRequestSchema,
+  fastify.addHook('onRoute', (routeOptions) => {
+    routeOptions.schema = {
+      ...routeOptions.schema,
+      tags: ['Authentication'],
+    };
+  });
+
+  fastify.post(
+    '/challenge',
+    {
+      schema: {
+        body: challengeRequestSchema,
+      },
     },
-    handler: challengeHandler,
-  });
+    challengeHandler
+  );
 
-  fastify.post('/verify', {
-    schema: {
-      body: verifyRequestSchema,
+  fastify.post(
+    '/verify',
+    {
+      schema: {
+        body: verifyRequestSchema,
+      },
     },
-    handler: verifyHandler,
-  });
+    verifyHandler
+  );
 
-  fastify.post('/logout', {
-    handler: logoutHandler,
-  });
+  fastify.post(
+    '/logout',
+    {
+      schema: {
+        security: [{ cookie: [] }],
+      },
+      preHandler: authMiddleware,
+    },
+    logoutHandler
+  );
 
-  fastify.get('/me', {
-    preHandler: authMiddleware,
-    handler: meHandler,
-  });
+  fastify.get(
+    '/me',
+    {
+      schema: {
+        security: [{ cookie: [] }],
+      },
+      preHandler: authMiddleware,
+    },
+    meHandler
+  );
 }

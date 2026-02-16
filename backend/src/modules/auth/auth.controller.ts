@@ -6,7 +6,7 @@ import {
   revokeSession,
 } from './auth.service.ts';
 import type { ChallengeRequest, VerifyRequest } from './auth.schema.ts';
-import { getUserFromRelays } from '../../config/relay.ts';
+import { getUserFromRelays } from '../../utils/Nostr/nostrQueries.ts';
 
 const SESSION_COOKIE_NAME = 'streakstr_session';
 const SESSION_MAX_AGE = 86400;

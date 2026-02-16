@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node src/index.ts",
     "dev": "node --watch src/index.ts",
+    "worker": "node src/worker/index.ts",
+    "worker:dev": "node --watch src/worker/index.ts",
     "build": "tsc --noEmit false --declaration --outDir dist",
     "db:push": "npx drizzle-kit push",
     "db:generate": "npx drizzle-kit generate",
@@ -22,6 +24,7 @@
     "@eslint/js": "^9.39.2",
     "@types/node": "^25.1.0",
     "@types/pg": "^8.16.0",
+    "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.31.8",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
@@ -33,7 +36,10 @@
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.2.0",
+    "@fastify/swagger": "^9.7.0",
+    "@fastify/swagger-ui": "^5.2.5",
     "@noble/curves": "^2.0.1",
+    "bullmq": "^5.69.3",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
     "fastify": "^5.7.2",
@@ -41,6 +47,7 @@
     "ioredis": "^5.9.2",
     "nostr-tools": "^2.23.0",
     "pg": "^8.18.0",
+    "ws": "^8.19.0",
     "zod": "^4.3.6"
   }
 }

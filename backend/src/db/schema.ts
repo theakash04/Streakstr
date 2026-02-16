@@ -40,7 +40,10 @@ export const Streaks = pg.pgTable('streaks', {
 
 export const StreakHistory = pg.pgTable('streak_history', {
   id: pg.uuid('id').primaryKey().defaultRandom(),
-  streakId: pg.uuid('streak_id').references(() => Streaks.id),
+  streakId: pg
+    .uuid('streak_id')
+    .references(() => Streaks.id)
+    .notNull(),
   countBeforeBreak: pg.integer('count_before_break').notNull(),
   startedAt: pg.timestamp('started_at').notNull(),
   brokenAt: pg.timestamp('broken_at').defaultNow(),
@@ -52,7 +55,10 @@ export const DailyLogs = pg.pgTable(
   'daily_logs',
   {
     id: pg.uuid('id').primaryKey().defaultRandom(),
-    streakId: pg.uuid('streak_id').references(() => Streaks.id),
+    streakId: pg
+      .uuid('streak_id')
+      .references(() => Streaks.id)
+      .notNull(),
     date: pg.date('date').notNull(),
     user1Completed: pg.boolean('user1_completed').default(false),
     user2Completed: pg.boolean('user2_completed').default(false),
@@ -69,10 +75,7 @@ export const StreakSettings = pg.pgTable('streak_settings', {
     .uuid('streak_id')
     .references(() => Streaks.id)
     .unique(),
-  // this happen when user streak is about to break, we will send a dm reminder to the user, the dm happen using bot account
   dmReminder: pg.boolean('dm_reminder').default(true),
-  // this happen when user breaks the streak, we will post and tag the user in that post, the post happen using bot account
-  postReminder: pg.boolean('post_reminder').default(true),
   reminderTime: pg.time('reminder_time'),
   abuseLevel: pg.integer('abuse_level').default(2),
   timezone: pg.text('timezone').default('UTC'),
@@ -83,3 +86,36 @@ export const StreakSettings = pg.pgTable('streak_settings', {
     .defaultNow()
     .$onUpdateFn(() => new Date()),
 });
+
+export const ReminderLog = pg.pgTable('reminder_logs', {
+  id: pg.uuid('id').primaryKey().defaultRandom(),
+  streakId: pg
+    .uuid('streak_id')
+    .references(() => Streaks.id, { onDelete: 'cascade' })
+    .notNull(),
+  targetPubkey: pg.text('target_pubkey').notNull(),
+  abuseLevel: pg.integer('abuse_level').notNull(),
+  nostrEventId: pg.text('nostr_event_id'),
+  sentAt: pg.timestamp('sent_at', { withTimezone: true }).defaultNow(),
+});
+
+export const BotFollower = pg.pgTable('bot_followers', {
+  id: pg.uuid('id').primaryKey().defaultRandom(),
+  pubkey: pg.text('pubkey').notNull().unique(),
+  autoStreakCreated: pg.boolean('auto_streak_created').default(false),
+  followedAt: pg.timestamp('followed_at').defaultNow(),
+});
+
+// we can use this table to keep track of the public tag posts we sent when someone breaks the streak, so we can avoid sending duplicate posts and also for analytics purpose
+export const StreakBreakPost = pg.pgTable('streak_break_posts', {
+  id: pg.uuid('id').primaryKey().defaultRandom(),
+  streakId: pg
+    .uuid('streak_id')
+    .references(() => Streaks.id, { onDelete: 'cascade' })
+    .notNull(),
+  pubkey: pg.text('pubkey').notNull(),
+  abuseLevel: pg.integer('abuse_level').notNull(),
+  eventId: pg.text('event_id').notNull(),
+  postedAt: pg.timestamp('posted_at').defaultNow(),
+});
+

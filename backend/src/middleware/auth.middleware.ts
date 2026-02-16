@@ -40,30 +40,3 @@ export async function authMiddleware(
     return reply.status(500).send({ error: 'Authentication error' });
   }
 }
-
-/**
- * Optional auth middleware - doesn't block if not authenticated
- * Just attaches user if session is valid
- */
-export async function optionalAuthMiddleware(
-  request: FastifyRequest,
-  _reply: FastifyReply,
-  _done: HookHandlerDoneFunction
-) {
-  const sessionId = request.cookies[SESSION_COOKIE_NAME];
-
-  if (!sessionId) {
-    return;
-  }
-
-  try {
-    const result = await validateSession(sessionId);
-
-    if (result.valid && result.pubkey) {
-      request.user = { pubkey: result.pubkey };
-    }
-  } catch (error) {
-    request.log.error(error, 'Optional session validation failed');
-    // Don't block the request, just continue without user
-  }
-}
