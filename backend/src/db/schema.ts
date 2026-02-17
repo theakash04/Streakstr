@@ -133,4 +133,22 @@ export const Logs = pg.pgTable('logs', {
   description: pg.text('description'),
   createdAt: pg.timestamp('created_at', { withTimezone: true }).defaultNow(),
   acknowledged: pg.boolean('acknowledged').default(false),
+  acknowledgedAt: pg.timestamp('acknowledged_at', { withTimezone: true }),
 });
+
+
+export const UserActivity = pg.pgTable(
+  'user_activity',
+  {
+    id: pg.uuid('id').primaryKey().defaultRandom(),
+    pubkey: pg.text('pubkey').notNull(),
+    date: pg.date('date').notNull(),
+    postCount: pg.integer('post_count').default(0),
+    streakActive: pg.boolean('streak_active').default(false), // was there an active streak on this day?
+    updatedAt: pg
+      .timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [pg.uniqueIndex('user_activity_pubkey_date_idx').on(table.pubkey, table.date)]
+);

@@ -2,7 +2,7 @@ import type { NostrEvent } from 'nostr-tools';
 import { nip04, nip19, nip44 } from 'nostr-tools';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { db } from '../../db/index.ts';
-import { BotFollower, DailyLogs, Logs, Streaks, StreakSettings } from '../../db/schema.ts';
+import { BotFollower, DailyLogs, Logs, Streaks, StreakSettings, UserActivity } from '../../db/schema.ts';
 import { sendDMReminder, sendNip17DM } from './nostrPublisher.ts';
 import { notifyWorkerToRefresh } from '../notifyWorker.ts';
 import {
@@ -38,6 +38,24 @@ function isInteractionWith(event: NostrEvent, targetPubkey: string): boolean {
 export async function processInteractionEvent(event: NostrEvent): Promise<void> {
   const pubkey = event.pubkey;
   const now = new Date();
+  const today = now.toISOString().split('T')[0];
+
+  // Track user activity for heatmap (every post counts, regardless of streak)
+  await db
+    .insert(UserActivity)
+    .values({
+      pubkey,
+      date: today,
+      postCount: 1,
+      streakActive: true,
+    })
+    .onConflictDoUpdate({
+      target: [UserActivity.pubkey, UserActivity.date],
+      set: {
+        postCount: sql`${UserActivity.postCount} + 1`,
+        streakActive: true,
+      },
+    });
 
   // Find all active streaks involving this pubkey (cached)
   const streaks = await getActiveStreaksForPubkey(pubkey);

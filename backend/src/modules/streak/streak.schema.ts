@@ -9,7 +9,7 @@ export const DuoStreakBodySchema = z.object({
   partnerPubkey: z.string().length(64),
 });
 
-export const deletePramaSchema = z.object({
+export const StreakCommonParamSchema = z.object({
   streakId: z.uuid(),
 });
 
@@ -25,4 +25,15 @@ export const invitationHandlingParamSchema = z.object({
 
 export const logsBodySchema = z.object({
   logsId: z.uuid(),
+});
+
+export const UserActivityQuerySchema = z.object({
+  year: z.number().int().min(2000).max(2100),
+});
+
+export const StreaksSettingUpdateBodySchema = z.object({
+  dmReminder: z.boolean().optional(),
+  abuseLevel: z.number().int().min(0).max(3).optional(),
+  reminderOffsetHours: z.number().int().min(0).optional(),
+  showInLeaderboard: z.boolean().optional(),
 });

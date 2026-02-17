@@ -39,6 +39,7 @@
     "@fastify/cors": "^11.2.0",
     "@fastify/swagger": "^9.7.0",
     "@fastify/swagger-ui": "^5.2.5",
+    "@google/genai": "^1.41.0",
     "@noble/curves": "^2.0.1",
     "bullmq": "^5.69.3",
     "dotenv": "^17.2.3",

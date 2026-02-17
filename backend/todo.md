@@ -76,16 +76,16 @@
 
 ---
 
-## ❌ TODO — MVP
+## TODO — MVP
 
 ### API Routes (Missing)
 
-- [ ] `PUT /api/streaks/:id/settings` — update abuse level, reminder toggle, reminder offset
-- [ ] `GET /api/streaks/:id` — get single streak with settings + daily logs + history
+- [x] `PUT /api/streaks/:id/settings` — update abuse level, reminder toggle, reminder offset
+- [x] `GET /api/streaks/:id` — get single streak with settings + daily logs + history
 
 ### Fixes
 
-- [ ] Fix npub in public shame posts — convert hex to `nostr:npub1...` format
+- [x] Fix npub in public shame posts — convert hex to `nostr:npub1...` format
 
 ---
 
@@ -103,6 +103,6 @@
 - [ ] Duo streak invite flow (invite link, accept/decline via website)
 - [ ] Public opt-in leaderboard
 - [ ] Streak freeze / pause / restore
-- [ ] AI-generated roast messages (abuse level 2-3)
+- [x] AI-generated roast messages (abuse level 2-3)
 - [ ] Top 10 most interacted npubs
 - [ ] Frontend (landing page + dashboard + settings)

@@ -4,6 +4,7 @@ import { useWebSocketImplementation } from 'nostr-tools/pool';
 import { hexToBytes } from 'nostr-tools/utils';
 import { Streaks } from '../../db/schema.ts';
 import { RELAY_URLS } from '../../config/relay.ts';
+import { generateAbuseMessage } from '../AiRandMsg.ts';
 
 useWebSocketImplementation(WebSocket);
 
@@ -15,32 +16,6 @@ if (decoded.type !== 'nsec') {
 const botSk: Uint8Array = decoded.data;
 
 type Streak = typeof Streaks.$inferSelect;
-
-// Change this with prompt and use ai to generate different message based on abuse level
-const ABUSE_MESSAGES: Record<number, string[]> = {
-  0: [
-    'Hey! Just a friendly reminder to keep your streak going today 🔥',
-    "Don't forget your streak! You've got this 💪",
-  ],
-  1: [
-    "Your streak is about to break... don't be that person 😤",
-    'Streak alert! Are you seriously going to let this die? 🫠',
-  ],
-  2: [
-    "YOUR STREAK IS DYING AND IT'S YOUR FAULT 💀",
-    'Imagine losing a streak because you were too lazy to post. Could not be me. Oh wait, it IS you 🤡',
-  ],
-  3: [
-    "You absolute walnut. Your streak is about to die and you're doing NOTHING about it 🥜💀",
-    'Breaking your streak? In THIS economy? Pathetic. 📉🤮',
-  ],
-};
-
-async function getRandomMessage(abuseLevel: number): Promise<string> {
-  // later change it to use ai to generate message based on abuse level and user info, for now just return random message from the list
-  const messages = ABUSE_MESSAGES[abuseLevel] || ABUSE_MESSAGES[0];
-  return messages[Math.floor(Math.random() * messages.length)];
-}
 
 export async function sendDMReminder(
   targetPubkey: string,
@@ -55,27 +30,11 @@ export async function sendDMReminder(
         : `Your streak has expired! 💀`;
 
     const message =
-      `${await getRandomMessage(abuseLevel)}\n\n` +
+      `${await generateAbuseMessage(abuseLevel, { currentCount: streak.currentCount ?? 0, streakName: streak.name }, 'dm')}\n\n` +
       `Streak: "${streak.name}" — Day ${streak.currentCount ?? 0}\n` +
       timeWarning;
 
     return sendNip17DM(targetPubkey, message);
-
-    // const event = finalizeEvent(
-    //   {
-    //     kind: 4,
-    //     created_at: Math.floor(Date.now() / 1000),
-    //     tags: [
-    //       ['p', targetPubkey],
-    //       ['subject', `Streak Reminder: ${streak.name}`],
-    //     ],
-    //     content: await nip04.encrypt(botSk, targetPubkey, message),
-    //   },
-    //   botSk
-    // );
-
-    // await Promise.all(pool.publish(RELAY_URLS, event));
-    // return event.id;
   } catch (error) {
     console.error(`Error sending DM reminder to ${targetPubkey}:`, error);
     return null;
@@ -88,8 +47,8 @@ export const sendPublicTagPost = async (
   abuseLevel: number
 ): Promise<string | null> => {
   try {
-    // TODO: we use shaming and mocking message here as it is post according to abuse level
-    const message = `${await getRandomMessage(abuseLevel)}\n\nStreak: "${streak.name}" - Day ${streak.currentCount ?? 0}\n\n@${targetPubkey}`;
+    const npub = nip19.npubEncode(targetPubkey);
+    const message = `${await generateAbuseMessage(abuseLevel, { currentCount: streak.currentCount ?? 0, streakName: streak.name }, 'post')}\n\nStreak: "${streak.name}" - Day ${streak.currentCount ?? 0}\n\nnostr:${npub}`;
     const event = finalizeEvent(
       {
         kind: 1,
