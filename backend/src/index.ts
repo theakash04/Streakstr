@@ -68,29 +68,37 @@ fastify.register(swaggerUi, {
   },
 });
 
-fastify.get('/health', async (_request, _reply) => {
-  let dbStatus = 'Disconnected';
-  let redisStatus;
-
-  try {
-    await db.execute(sql`SELECT NOW()`);
-    dbStatus = 'Connected';
-    const result = await redis.ping();
-    redisStatus = result;
-  } catch (error) {
-    dbStatus = 'Error: ' + (error as Error).message;
-    redisStatus = 'Error: ' + (error as Error).message;
-  }
-
-  return {
-    success: true,
-    message: {
-      healthStatus: 'Running',
-      DBStatus: dbStatus,
-      RedisStatus: redisStatus,
+fastify.get(
+  '/health',
+  {
+    schema: {
+      tags: ['Health'],
     },
-  };
-});
+  },
+  async (_request, _reply) => {
+    let dbStatus = 'Disconnected';
+    let redisStatus;
+
+    try {
+      await db.execute(sql`SELECT NOW()`);
+      dbStatus = 'Connected';
+      const result = await redis.ping();
+      redisStatus = result;
+    } catch (error) {
+      dbStatus = 'Error: ' + (error as Error).message;
+      redisStatus = 'Error: ' + (error as Error).message;
+    }
+
+    return {
+      success: true,
+      message: {
+        healthStatus: 'Running',
+        DBStatus: dbStatus,
+        RedisStatus: redisStatus,
+      },
+    };
+  }
+);
 
 const start = async () => {
   try {

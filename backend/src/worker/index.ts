@@ -5,11 +5,12 @@ import { eq } from 'drizzle-orm';
 import { db } from '../db/index.ts';
 import {
   closeAllSubscriptions,
+  catchUpBotFollows,
   subscribeToBotFollows,
+  subscribeToBotDMs,
   subscribeToInteractions,
 } from '../utils/Nostr/relaySubscriptionManager.ts';
 import { getPublicKey, nip19 } from 'nostr-tools';
-import { hexToBytes } from 'nostr-tools/utils';
 import { reminderWorker, scheduleRecurringJobs, streakCheckWorker } from './worker.ts';
 
 dotenv.config();
@@ -34,7 +35,6 @@ async function start(): Promise<void> {
   console.log('Starting Streakstr worker...');
 
   const pubkeys = await getTrackedPubkeys();
-  console.log('Tracking pubkeys:', pubkeys);
 
   subscribeToInteractions(pubkeys);
 
@@ -43,7 +43,21 @@ async function start(): Promise<void> {
     throw new Error('NOSTR_BOT_SECRET_KEY must be an nsec key');
   }
   const botPubkey = getPublicKey(botSk);
+
+  // Catch up on any follows missed while the worker was down
+  // This skips users already processed or who opted out (doNotKeepStreak)
+  await catchUpBotFollows(botPubkey);
+
+  // Refresh pubkeys since catch-up may have created new streaks
+  const updatedPubkeys = await getTrackedPubkeys();
+  if (updatedPubkeys.length !== pubkeys.length) {
+    console.log(`Catch-up added ${updatedPubkeys.length - pubkeys.length} new tracked pubkeys`);
+    subscribeToInteractions(updatedPubkeys);
+  }
+
+  // Now start live subscriptions
   subscribeToBotFollows(botPubkey);
+  subscribeToBotDMs(botPubkey);
 
   await scheduleRecurringJobs();
 

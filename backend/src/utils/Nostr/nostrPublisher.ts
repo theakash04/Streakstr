@@ -45,11 +45,19 @@ async function getRandomMessage(abuseLevel: number): Promise<string> {
 export async function sendDMReminder(
   targetPubkey: string,
   streak: Streak,
-  abuseLevel: number
+  abuseLevel: number,
+  hoursLeft: number = 0
 ): Promise<string | null> {
   try {
-    // TODO: we use not that shaming as it is private dm remainder, but still use different message based on abuse level
-    const message = `${await getRandomMessage(abuseLevel)}\n\nStreak: "${streak.name}" - Day ${streak.currentCount ?? 0}`;
+    const timeWarning =
+      hoursLeft > 0
+        ? `Your streak expires in ~${hoursLeft} hour${hoursLeft > 1 ? 's' : ''}! Post something on Nostr to keep it alive! 📝`
+        : `Your streak has expired! 💀`;
+
+    const message =
+      `${await getRandomMessage(abuseLevel)}\n\n` +
+      `Streak: "${streak.name}" — Day ${streak.currentCount ?? 0}\n` +
+      timeWarning;
 
     return sendNip17DM(targetPubkey, message);
 

@@ -1,0 +1,1 @@
+ALTER TABLE "logs" RENAME COLUMN "related_pubkey_1" TO "started_by_pubkey";
