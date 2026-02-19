@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Flame, Clock, ArrowRight } from "lucide-react";
+import { Flame, Clock, ArrowRight, Check } from "lucide-react";
 import { type Streak } from "@/lib/api";
 import { CountdownTimer } from "./CountdownTimer";
 
@@ -7,7 +7,17 @@ interface StreakCardProps {
   streak: Streak;
 }
 
+function isWindowCompleted(streak: Streak): boolean {
+  if (!streak.lastActivityAt || !streak.deadline) return false;
+  const lastActivity = new Date(streak.lastActivityAt);
+  const now = new Date();
+  return (
+    lastActivity.toISOString().split("T")[0] === now.toISOString().split("T")[0]
+  );
+}
+
 export function StreakCard({ streak }: StreakCardProps) {
+  const completed = isWindowCompleted(streak);
   const statusStyles: Record<string, { dot: string; badge: string }> = {
     active: {
       dot: "bg-status-gentle",
@@ -69,8 +79,16 @@ export function StreakCard({ streak }: StreakCardProps) {
           <div className="text-right">
             {streak.deadline && streak.status === "active" ? (
               <div className="flex items-center gap-1.5 text-muted">
-                <Clock className="w-3 h-3" />
-                <CountdownTimer deadline={streak.deadline} compact />
+                {completed ? (
+                  <Check className="w-3 h-3 text-status-gentle" />
+                ) : (
+                  <Clock className="w-3 h-3" />
+                )}
+                <CountdownTimer
+                  deadline={streak.deadline}
+                  compact
+                  completed={completed}
+                />
               </div>
             ) : (
               <ArrowRight className="w-4 h-4 text-muted group-hover:text-brand-500 transition-colors" />

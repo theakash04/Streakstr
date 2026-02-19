@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { challengeHandler, verifyHandler, logoutHandler, meHandler } from './auth.controller.ts';
 import { challengeRequestSchema, verifyRequestSchema } from './auth.schema.ts';
 import { authMiddleware } from '../../middleware/auth.middleware.ts';
+import { RELAY_URLS } from '../../config/relay.ts';
 
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.addHook('onRoute', (routeOptions) => {
@@ -9,6 +10,11 @@ export async function authRoutes(fastify: FastifyInstance) {
       ...routeOptions.schema,
       tags: ['Authentication'],
     };
+  });
+
+  // Public — exposes relay URLs for frontend NIP-46 / auth event
+  fastify.get('/relays', async (_req, reply) => {
+    return reply.send({ relays: RELAY_URLS });
   });
 
   fastify.post(

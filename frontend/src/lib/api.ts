@@ -50,6 +50,8 @@ export const authApi = {
     api.get<{ pubkey: string; user: object | null; authenticated: boolean }>(
       "/auth/me",
     ),
+
+  getRelays: () => api.get<{ relays: string[] }>("/auth/relays"),
 };
 
 // Streak API calls

@@ -5,4 +5,5 @@ export const RELAY_URLS = [
   'wss://nos.mom',
   'wss://ribo.eu.nostria.app',
   'wss://relay.primal.net',
+  'wss://nostr-01.yakihonne.com',
 ];

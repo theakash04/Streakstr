@@ -84,6 +84,18 @@ function StreakDetailPage() {
   const settings = detail.settings;
   const history = detail.history;
 
+  // Check if the current window is completed (user already posted today)
+  const windowCompleted = (() => {
+    if (!streak.lastActivityAt || !streak.deadline) return false;
+    const lastActivity = new Date(streak.lastActivityAt);
+    const now = new Date();
+    // Compare UTC dates — if last activity is today, window is done
+    return (
+      lastActivity.toISOString().split("T")[0] ===
+      now.toISOString().split("T")[0]
+    );
+  })();
+
   const statusStyles: Record<string, string> = {
     active: "bg-status-gentle/10 text-status-gentle border-status-gentle/20",
     pending: "bg-status-firm/10 text-status-firm border-status-firm/20",
@@ -166,15 +178,24 @@ function StreakDetailPage() {
           transition={{ delay: 0.2 }}
           className="bg-surface border border-outline rounded-2xl p-6 text-center"
         >
-          <div className="w-12 h-12 bg-brand-400/10 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <Clock className="w-6 h-6 text-brand-400" />
+          <div
+            className={`w-12 h-12 ${windowCompleted ? "bg-status-gentle/10" : "bg-brand-400/10"} rounded-xl flex items-center justify-center mx-auto mb-3`}
+          >
+            <Clock
+              className={`w-6 h-6 ${windowCompleted ? "text-status-gentle" : "text-brand-400"}`}
+            />
           </div>
           {streak.deadline ? (
-            <CountdownTimer deadline={streak.deadline} />
+            <CountdownTimer
+              deadline={streak.deadline}
+              completed={windowCompleted}
+            />
           ) : (
             <p className="text-xl font-bold text-muted">—</p>
           )}
-          <p className="text-xs text-muted mt-1">Time Left</p>
+          <p className="text-xs text-muted mt-1">
+            {windowCompleted ? "Next Deadline" : "Time Left"}
+          </p>
         </motion.div>
       </div>
 

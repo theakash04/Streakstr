@@ -31,7 +31,7 @@ export const Hero: React.FC = () => {
             Habits on Nostr.
           </h1>
 
-          <p className="max-w-2xl mx-auto text-xl text-muted mb-10 leading-relaxed">
+          <p className="max-w-2xl mx-auto text-xl text-muted mb-10 leading-relaxed px-2 sm:px-0">
             Streakstr tracks your daily Nostr activity and turns it into
             streaks. Post every day. Keep the streak alive. Break it, and
             everyone knows.
