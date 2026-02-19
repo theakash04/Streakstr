@@ -23,8 +23,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-streakstr}
-    ports:
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
@@ -40,9 +38,11 @@ services:
       dockerfile: Dockerfile
     container_name: streakstr-backend
     ports:
-      - "127.0.0.1:${PORT:-8080}:${PORT:-8080}"
+      - "127.0.0.1:${PORT:-8081}:${PORT:-8080}"
     env_file:
       - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-streakstr}
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,6 +56,8 @@ services:
     command: ["npm", "run", "worker"]
     env_file:
       - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-streakstr}
     depends_on:
       postgres:
         condition: service_healthy
@@ -69,7 +71,7 @@ services:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
     container_name: streakstr-frontend
     ports:
-      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:3001:3000"
     depends_on:
       - backend
     restart: unless-stopped

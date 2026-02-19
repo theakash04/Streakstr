@@ -2,13 +2,14 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-# Install dependencies
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm ci
 
-# Copy source
 COPY . .
+
+RUN chmod +x entrypoint.sh
 
 EXPOSE 8080
 
-CMD ["npm run start"]
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["npm", "run", "start"]
