@@ -1,18 +1,15 @@
 services:
-  # if no redis present create a redis service and use that
-  # redis:
-  #   image: redis:alpine
-  #   container_name: streakstr-redis
-  #   ports:
-  #     - "127.0.0.1:6379:6379"
-  #   volumes:
-  #     - redis_data:/data
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "redis-cli", "ping"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
+  redis:
+    image: redis:alpine
+    container_name: streakstr-redis
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   postgres:
     image: postgres:alpine
@@ -42,8 +39,10 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-streakstr}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@streakstr-postgres:5432/${POSTGRES_DB:-streakstr}
     depends_on:
+      redis:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     restart: unless-stopped
@@ -57,8 +56,10 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-streakstr}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@streakstr-postgres:5432/${POSTGRES_DB:-streakstr}
     depends_on:
+      redis:
+        condition: service_healthy
       postgres:
         condition: service_healthy
     restart: unless-stopped
@@ -80,6 +81,7 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   default:
