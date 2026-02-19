@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback } from "react";
-import { User, Bell, Lock, Activity, Zap } from "lucide-react";
+import { User, Bell, Lock, Activity, Zap, Smartphone } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface FeatureItem {
@@ -43,7 +43,13 @@ const features: FeatureItem[] = [
     title: "Contribution Graph",
     description:
       "See your daily activity in a colorful grid inspired by Github's contribution graph.",
-    icon: User,
+    icon: Activity,
+  },
+  {
+    title: "Install as App",
+    description:
+      "Works as a PWA. Install it on your phone or desktop for a native-like experience.",
+    icon: Smartphone,
   },
 ];
 
@@ -177,7 +183,7 @@ const FeatureCard: React.FC<FeatureCardProps> = ({
       />
 
       {/* Subtle top border accent */}
-      <div className="absolute top-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-brand-500/0 to-transparent group-hover:via-brand-500/50 transition-all duration-500" />
+      <div className="absolute top-0 left-6 right-6 h-px bg-linear-to-r from-transparent via-brand-500/0 to-transparent group-hover:via-brand-500/50 transition-all duration-500" />
 
       <div className="relative z-10">
         <motion.div
