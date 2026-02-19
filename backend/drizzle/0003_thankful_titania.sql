@@ -1,1 +1,0 @@
-ALTER TABLE "streak_settings" DROP COLUMN "reminder_time";

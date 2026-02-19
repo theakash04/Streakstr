@@ -5,11 +5,11 @@
   "packageManager": "npm",
   "tailwind": true,
   "addOnOptions": {},
-  "git": true,
+  "git": false,
+  "routerOnly": true,
   "version": 1,
   "framework": "react-cra",
   "chosenAddOns": [
-    "biome",
-    "start"
+    "biome"
   ]
 }

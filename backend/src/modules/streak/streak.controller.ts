@@ -419,6 +419,8 @@ export async function getUserActivity(req: FastifyRequest, reply: FastifyReply) 
 
     return reply.status(200).send({ activityLogs });
   } catch (error) {
+    // use pino logs to log the error with stack trace
+    req.log.error({ error }, 'Failed to get user activity logs');
     return reply.status(500).send({ error: 'Failed to get user activity logs' });
   }
 }

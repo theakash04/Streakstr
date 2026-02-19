@@ -2,7 +2,14 @@ import type { NostrEvent } from 'nostr-tools';
 import { nip04, nip19, nip44 } from 'nostr-tools';
 import { eq, and, or, sql } from 'drizzle-orm';
 import { db } from '../../db/index.ts';
-import { BotFollower, DailyLogs, Logs, Streaks, StreakSettings, UserActivity } from '../../db/schema.ts';
+import {
+  BotFollower,
+  DailyLogs,
+  Logs,
+  Streaks,
+  StreakSettings,
+  UserActivity,
+} from '../../db/schema.ts';
 import { sendDMReminder, sendNip17DM } from './nostrPublisher.ts';
 import { notifyWorkerToRefresh } from '../notifyWorker.ts';
 import {
@@ -20,6 +27,21 @@ import {
 const { type: keyType, data: botSk } = nip19.decode(process.env.NOSTR_BOT_SECRET_KEY!);
 if (keyType !== 'nsec') {
   throw new Error('NOSTR_BOT_SECRET_KEY must be an nsec key');
+}
+
+// Grace period: allow activity within 1 hour after deadline
+const GRACE_PERIOD_MS = 60 * 60 * 1000;
+
+/**
+ * Get the end of tomorrow in UTC (23:59:59.999).
+ * This gives users until the end of the next full calendar day.
+ */
+function getEndOfNextDay(): Date {
+  const now = new Date();
+  const tomorrow = new Date(now);
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(23, 59, 59, 999);
+  return tomorrow;
 }
 
 /**
@@ -61,8 +83,8 @@ export async function processInteractionEvent(event: NostrEvent): Promise<void> 
   const streaks = await getActiveStreaksForPubkey(pubkey);
 
   for (const streak of streaks) {
-    // If the deadline has already passed, skip — streakCheckWorker will break it
-    if (streak.deadline && new Date(streak.deadline) < now) {
+    // If well past deadline + grace period, skip — streakCheckWorker will break it
+    if (streak.deadline && now.getTime() > new Date(streak.deadline).getTime() + GRACE_PERIOD_MS) {
       continue;
     }
 
@@ -102,7 +124,7 @@ export async function processInteractionEvent(event: NostrEvent): Promise<void> 
           currentCount: (streak.currentCount ?? 0) + 1,
           highestCount: Math.max(streak.highestCount ?? 0, (streak.currentCount ?? 0) + 1),
           lastActivityAt: new Date(),
-          deadline: new Date(now.getTime() + 24 * 60 * 60 * 1000),
+          deadline: getEndOfNextDay(),
         })
         .where(eq(Streaks.id, streak.id));
 
@@ -165,7 +187,7 @@ export async function processInteractionEvent(event: NostrEvent): Promise<void> 
             currentCount: (streak.currentCount ?? 0) + 1,
             highestCount: Math.max(streak.highestCount ?? 0, (streak.currentCount ?? 0) + 1),
             lastActivityAt: new Date(),
-            deadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            deadline: getEndOfNextDay(),
           })
           .where(eq(Streaks.id, streak.id));
 
@@ -212,7 +234,7 @@ export async function processFollowEvent(event: NostrEvent): Promise<void> {
 
   // Create a default solo streak with 24hr rolling window
   const now = new Date();
-  const deadline = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const deadline = getEndOfNextDay();
 
   const [streak] = await db
     .insert(Streaks)
@@ -328,7 +350,7 @@ export async function processBotDMReply(event: NostrEvent): Promise<void> {
 
     // Create a default solo streak with 24hr rolling window
     const now = new Date();
-    const deadline = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const deadline = getEndOfNextDay();
 
     const [streak] = await db
       .insert(Streaks)

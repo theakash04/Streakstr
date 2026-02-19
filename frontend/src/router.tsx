@@ -1,17 +1,32 @@
-import { createRouter } from '@tanstack/react-router'
+import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { routeTree } from "./routeTree.gen";
+import { getAuthUser } from "@/lib/auth-guard";
 
-// Import the generated route tree
-import { routeTree } from './routeTree.gen'
-
-// Create a new router instance
-export const getRouter = () => {
-  const router = createRouter({
+export function getRouter() {
+  const router = createTanStackRouter({
     routeTree,
-    context: {},
-
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
-  })
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 30_000,
+    context: {
+      auth: undefined!,
+    },
+  });
 
-  return router
+  return router;
+}
+
+export async function initRouter() {
+  const router = getRouter();
+  const auth = await getAuthUser();
+  router.update({
+    context: { auth },
+  });
+  return router;
+}
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: ReturnType<typeof getRouter>;
+  }
 }

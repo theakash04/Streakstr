@@ -1,151 +1,56 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
-@custom-variant dark (&:where(.dark, .dark *));
 
-/* theme.css */
-@layer base {
-  :root {
-    /* Light Theme */
 
-    /* Backgrounds */
-    --bg-background: #fafaf9;
-    --bg-surface: #ffffff;
-    --bg-surface-hover: #f5f5f4;
-    --bg-surface-muted: #f5f5f4;
-
-    /* Text */
-    --text-primary: #1c1917;
-    --text-secondary: #57534e;
-    --text-muted: #a8a29e;
-
-    /* Borders */
-    --border-color: #e7e5e4;
-    --border-hover: #d6d3d1;
-
-    /* Brand */
-    --color-primary: #1c1917;
-    --color-primary-fg: #fafaf9;
-
-    /* Status */
-    --color-danger: #dc2626;
-    --color-warning: #f59e0b;
-    --color-success: #16a34a;
-    --color-pending: #6366f1;
-    --color-fire: #ea580c;
-  }
-
-  .dark {
-    /* Dark Theme */
-
-    /* Backgrounds */
-    --bg-background: #0c0a09;
-    --bg-surface: #1c1917;
-    --bg-surface-hover: #292524;
-    --bg-surface-muted: #1c1917;
-
-    /* Text */
-    --text-primary: #fafaf9;
-    --text-secondary: #a8a29e;
-    --text-muted: #57534e;
-
-    /* Borders */
-    --border-color: #292524;
-    --border-hover: #44403c;
-
-    /* Brand */
-    --color-primary: #fafaf9;
-    --color-primary-fg: #0c0a09;
-
-    /* Status */
-    --color-danger: #ef4444;
-    --color-warning: #fbbf24;
-    --color-success: #22c55e;
-    --color-pending: #818cf8;
-    --color-fire: #f97316;
-  }
-}
 
 @theme {
-  /* Backgrounds */
-  --color-background: var(--bg-background);
+  --container-8xl: 1536px;
+  /* ========================
+     DARK (DEFAULT)
+     ======================== */
 
-  --color-surface: var(--bg-surface);
-  --color-surface-hover: var(--bg-surface-hover);
-  --color-surface-muted: var(--bg-surface-muted);
+  /* Base */
+  --color-background: #050505;
+  --color-app: #000000;
+  --color-section: #0a0a0a;
+  --color-surface: #171717;
+  --color-outline: #262626;
 
   /* Text */
-  --color-text-primary: var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-text-muted: var(--text-muted);
-
-  /* Borders */
-  --color-border: var(--border-color);
-  --color-border-hover: var(--border-hover);
+  --color-foreground: #ffffff;
+  --color-body: #e5e5e5;
+  --color-muted: #a3a3a3;
+  --color-subtle: #737373;
 
   /* Brand */
-  --color-primary: var(--color-primary);
-  --color-primary-fg: var(--color-primary-fg);
+  --color-brand-400: #fb923c;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-900: #7c2d12;
 
   /* Status */
-  --color-danger: var(--color-danger);
-  --color-warning: var(--color-warning);
-  --color-success: var(--color-success);
-  --color-pending: var(--color-pending);
-  --color-fire: var(--color-fire);
-
-  /* Fonts */
-  --font-sans: Inter, system-ui, sans-serif;
-  --font-display: Inter, system-ui, sans-serif;
+  --color-status-gentle: #4ade80;
+  --color-status-firm: #facc15;
+  --color-status-chaos: #dc2626;
 }
 
-* {
-  box-sizing: border-box;
+[data-theme="light"] {
+  /* Base */
+  --color-background: #ffffff;
+  --color-app: #ffffff;
+  --color-section: #f5f5f5;
+  --color-surface: #ffffff;
+  --color-outline: #e5e5e5;
+
+  /* Text */
+  --color-foreground: #0a0a0a;
+  --color-body: #1f2937;
+  --color-muted: #6b7280;
+  --color-subtle: #9ca3af;
 }
 
-body {
-  margin: 0;
-  font-family:
-    "Inter",
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    "Roboto",
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  background-color: var(--color-background);
-  color: var(--color-text-primary);
-}
-
-/* Custom Utility Classes */
-.text-gradient-fusion {
-  background: linear-gradient(135deg, var(--color-btc), var(--color-nostr));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.glow-fire {
-  box-shadow: 0 0 30px rgba(255, 107, 53, 0.4);
-}
-
-.glow-purple {
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
-}
-
-.glow-btc {
-  box-shadow: 0 0 30px rgba(247, 147, 26, 0.4);
-}
-
-.bg-grid-pattern {
-  background-image:
-    linear-gradient(to right, #1e293b 1px, transparent 1px),
-    linear-gradient(to bottom, #1e293b 1px, transparent 1px);
-  background-size: 40px 40px;
-  mask-image: radial-gradient(circle at center, black 40%, transparent 100%);
-  -webkit-mask-image: radial-gradient(
-    circle at center,
-    black 40%,
-    transparent 100%
-  );
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-body);
+  }
 }

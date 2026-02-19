@@ -2,6 +2,9 @@
   "name": "frontend",
   "private": true,
   "type": "module",
+  "imports": {
+    "#/*": "./src/*"
+  },
   "scripts": {
     "dev": "vite dev --port 3000",
     "build": "vite build",
@@ -12,24 +15,25 @@
     "check": "biome check"
   },
   "dependencies": {
-    "@tailwindcss/vite": "^4.0.6",
+    "@noble/hashes": "^2.0.1",
+    "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-devtools": "^0.7.0",
-    "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-router": "^1.132.0",
     "@tanstack/react-router-devtools": "^1.132.0",
-    "@tanstack/react-router-ssr-query": "^1.131.7",
-    "@tanstack/react-start": "^1.132.0",
     "@tanstack/router-plugin": "^1.132.0",
-    "lucide-react": "^0.561.0",
-    "nostr-tools": "^2.23.0",
+    "axios": "^1.13.5",
+    "framer-motion": "^12.34.1",
+    "lucide-react": "^0.545.0",
+    "nostr-tools": "^2.23.1",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "tailwindcss": "^4.0.6",
-    "vite-tsconfig-paths": "^6.0.2"
+    "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
     "@biomejs/biome": "2.2.4",
     "@tanstack/devtools-vite": "^0.3.11",
+    "@tanstack/router-plugin": "^1.132.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^22.10.2",
@@ -39,7 +43,7 @@
     "jsdom": "^27.0.0",
     "typescript": "^5.7.2",
     "vite": "^7.1.7",
-    "vitest": "^3.0.5",
-    "web-vitals": "^5.1.0"
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.0.5"
   }
 }

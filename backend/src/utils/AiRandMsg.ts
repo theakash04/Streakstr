@@ -37,11 +37,10 @@ You are generating a comedic roast message for a streak-based app.
 Context:
 - The user has a ${userInfo.currentCount}-day streak.
 - The streak is called "${userInfo.streakName}".
-- Abuse level: ${abuseLevel} (0=none, 1=light tease, 2=strong roast, 3=extreme chaotic roast).
+- Abuse level: ${abuseLevel} (1=light tease, 2=strong roast, 3=extreme chaotic roast).
 - Message type: ${messageType === 'dm' ? 'Private reminder (DM)' : 'Public shame post'}.
 
 Tone rules by abuse level:
-0 → Pure encouragement. Supportive. No insults.
 1 → Playful teasing. Light sarcasm. No profanity.
 2 → Aggressive roast energy. Dramatic exaggeration. Mild profanity allowed. No real cruelty.
 3 → Unhinged, chaotic, over-the-top roast. Strong profanity allowed. Absurd exaggeration.

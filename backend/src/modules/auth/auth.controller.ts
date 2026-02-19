@@ -51,7 +51,7 @@ export async function verifyHandler(
     reply.setCookie(SESSION_COOKIE_NAME, sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       path: '/',
       maxAge: SESSION_MAX_AGE,
     });

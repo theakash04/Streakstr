@@ -134,7 +134,7 @@ export async function streakRoutes(fastify: FastifyInstance) {
     getSingleStreak
   );
 
-  fastify.put(
+  fastify.patch(
     '/:streakId/settings',
     {
       schema: {

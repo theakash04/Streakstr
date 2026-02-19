@@ -8,19 +8,61 @@ useWebSocketImplementation(WebSocket);
 const pool = new SimplePool({ enablePing: true, enableReconnect: true });
 
 const activeSubscriptions: Map<string, SubCloser> = new Map();
+const reconnectTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+/** Tracks subscriptions being intentionally closed — prevents onclose from reconnecting */
+const closingIntentionally: Set<string> = new Set();
 
 let trackedPubkeys: string[] = [];
 let storedBotPubkey: string | null = null;
 
 const RECONNECT_DELAY_MS = 5000;
+const MAX_RECONNECT_DELAY_MS = 60000;
+const reconnectAttempts: Map<string, number> = new Map();
+
+/** Get delay with exponential backoff */
+function getReconnectDelay(name: string): number {
+  const attempts = reconnectAttempts.get(name) ?? 0;
+  reconnectAttempts.set(name, attempts + 1);
+  return Math.min(RECONNECT_DELAY_MS * 2 ** attempts, MAX_RECONNECT_DELAY_MS);
+}
+
+/** Reset backoff counter on successful connection (EOSE) */
+function resetReconnectAttempts(name: string): void {
+  reconnectAttempts.set(name, 0);
+}
+
+/** Cancel any pending reconnect for a subscription */
+function cancelPendingReconnect(name: string): void {
+  const timer = reconnectTimers.get(name);
+  if (timer) {
+    clearTimeout(timer);
+    reconnectTimers.delete(name);
+  }
+}
+
+/** Close a subscription intentionally without triggering reconnect */
+function closeSubscription(name: string): void {
+  cancelPendingReconnect(name);
+  const existing = activeSubscriptions.get(name);
+  if (existing) {
+    closingIntentionally.add(name);
+    existing.close();
+    activeSubscriptions.delete(name);
+    // Clean up the flag after a tick (onclose fires synchronously or next tick)
+    setTimeout(() => closingIntentionally.delete(name), 100);
+  }
+}
+
+/** Check if onclose reasons indicate a real problem (not intentional) */
+function isUnexpectedClose(reasons: string[]): boolean {
+  // If ALL reasons are "closed by caller", it was intentional
+  return !reasons.every((r) => r === 'closed by caller');
+}
 
 export function subscribeToInteractions(pubkeys: string[]): void {
   trackedPubkeys = pubkeys;
 
-  const existing = activeSubscriptions.get('interactions');
-  if (existing) {
-    existing.close();
-  }
+  closeSubscription('interactions');
 
   if (pubkeys.length === 0) {
     console.log('No pubkeys provided for interactions subscription, skipping.');
@@ -46,14 +88,22 @@ export function subscribeToInteractions(pubkeys: string[]): void {
 
       oneose() {
         console.log('Interaction subscription EOSE received (caught up with stored events)');
+        resetReconnectAttempts('interactions');
       },
       onclose(reasons) {
         console.log('Interaction subscription closed:', reasons);
-        if (trackedPubkeys.length > 0) {
-          setTimeout(() => {
-            console.log('Reconnecting interactions subscription...');
+
+        // Skip reconnect if we closed it intentionally
+        if (closingIntentionally.has('interactions')) return;
+
+        if (trackedPubkeys.length > 0 && isUnexpectedClose(reasons)) {
+          const delay = getReconnectDelay('interactions');
+          console.log(`Reconnecting interactions subscription in ${delay / 1000}s...`);
+          const timer = setTimeout(() => {
+            reconnectTimers.delete('interactions');
             subscribeToInteractions(trackedPubkeys);
-          }, RECONNECT_DELAY_MS);
+          }, delay);
+          reconnectTimers.set('interactions', timer);
         }
       },
     }
@@ -65,10 +115,7 @@ export function subscribeToInteractions(pubkeys: string[]): void {
 export function subscribeToBotFollows(botPubkey: string): void {
   storedBotPubkey = botPubkey;
 
-  const existing = activeSubscriptions.get('bot-follows');
-  if (existing) {
-    existing.close();
-  }
+  closeSubscription('bot-follows');
 
   console.log('Subscribing to bot follows for pubkey:', botPubkey);
 
@@ -89,15 +136,22 @@ export function subscribeToBotFollows(botPubkey: string): void {
 
       oneose() {
         console.log('Bot follows subscription EOSE received (caught up with stored events)');
+        resetReconnectAttempts('bot-follows');
       },
 
       onclose(reasons) {
         console.log('Bot follows subscription closed:', reasons);
-        if (storedBotPubkey) {
-          setTimeout(() => {
-            console.log('Reconnecting bot follows subscription...');
+
+        if (closingIntentionally.has('bot-follows')) return;
+
+        if (storedBotPubkey && isUnexpectedClose(reasons)) {
+          const delay = getReconnectDelay('bot-follows');
+          console.log(`Reconnecting bot follows subscription in ${delay / 1000}s...`);
+          const timer = setTimeout(() => {
+            reconnectTimers.delete('bot-follows');
             subscribeToBotFollows(storedBotPubkey!);
-          }, RECONNECT_DELAY_MS);
+          }, delay);
+          reconnectTimers.set('bot-follows', timer);
         }
       },
     }
@@ -109,10 +163,7 @@ export function subscribeToBotFollows(botPubkey: string): void {
 export function subscribeToBotDMs(botPubkey: string): void {
   storedBotPubkey = botPubkey;
 
-  const existing = activeSubscriptions.get('bot-dms');
-  if (existing) {
-    existing.close();
-  }
+  closeSubscription('bot-dms');
 
   const sub = pool.subscribeMany(
     RELAY_URLS,
@@ -131,15 +182,22 @@ export function subscribeToBotDMs(botPubkey: string): void {
 
       oneose() {
         console.log('Bot DMs subscription EOSE received');
+        resetReconnectAttempts('bot-dms');
       },
 
       onclose(reasons) {
         console.log('Bot DMs subscription closed:', reasons);
-        if (storedBotPubkey) {
-          setTimeout(() => {
-            console.log('Reconnecting bot DMs subscription...');
+
+        if (closingIntentionally.has('bot-dms')) return;
+
+        if (storedBotPubkey && isUnexpectedClose(reasons)) {
+          const delay = getReconnectDelay('bot-dms');
+          console.log(`Reconnecting bot DMs subscription in ${delay / 1000}s...`);
+          const timer = setTimeout(() => {
+            reconnectTimers.delete('bot-dms');
             subscribeToBotDMs(storedBotPubkey!);
-          }, RECONNECT_DELAY_MS);
+          }, delay);
+          reconnectTimers.set('bot-dms', timer);
         }
       },
     }
@@ -180,10 +238,11 @@ export function closeAllSubscriptions(): void {
   storedBotPubkey = null;
   trackedPubkeys = [];
 
-  for (const [name, sub] of activeSubscriptions) {
+  for (const name of activeSubscriptions.keys()) {
     console.log(`Closing subscription: ${name}`);
-    sub.close();
+    closeSubscription(name);
   }
   activeSubscriptions.clear();
+  reconnectAttempts.clear();
   pool.close(RELAY_URLS);
 }

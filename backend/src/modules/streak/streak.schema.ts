@@ -28,7 +28,7 @@ export const logsBodySchema = z.object({
 });
 
 export const UserActivityQuerySchema = z.object({
-  year: z.number().int().min(2000).max(2100),
+  year: z.string().regex(/^\d{4}$/), // Year in YYYY format
 });
 
 export const StreaksSettingUpdateBodySchema = z.object({
