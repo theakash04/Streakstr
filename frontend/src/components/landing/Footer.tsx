@@ -17,7 +17,7 @@ export const Footer: React.FC = () => {
 
           <div className="flex items-center gap-4">
             <a
-              href="#"
+              href="https://github.com/theakash04/Streakstr"
               className="text-subtle hover:text-foreground transition-colors"
             >
               <Github className="w-5 h-5" />
