@@ -173,6 +173,7 @@ function LoginPage() {
                 onSuccess={() =>
                   setTimeout(() => refreshAuthAndNavigate(), 1500)
                 }
+                reset={reset}
               />
             )}
           </AnimatePresence>
@@ -286,6 +287,7 @@ function RemoteLogin({
   onQRLogin,
   loginWithQR,
   onSuccess,
+  reset,
 }: {
   isLoading: boolean;
   isError: boolean;
@@ -296,8 +298,11 @@ function RemoteLogin({
   onQRLogin: () => void;
   loginWithQR: () => Promise<QRLoginSession>;
   onSuccess: () => void;
+  reset: () => void;
 }) {
   const [subMode, setSubMode] = useState<RemoteSubMode>("qr");
+  // Track whether the QR flow is the one that set isLoading
+  const [qrActive, setQrActive] = useState(true);
 
   return (
     <motion.div
@@ -320,8 +325,7 @@ function RemoteLogin({
               className="text-brand-500 hover:text-brand-400 underline underline-offset-2"
             >
               Amber
-            </a>
-            {" "}
+            </a>{" "}
             or another NIP-46 compatible signer.
           </p>
         </div>
@@ -329,7 +333,11 @@ function RemoteLogin({
         {/* Sub-mode toggle */}
         <div className="flex gap-1 p-0.5 bg-section/60 rounded-lg">
           <button
-            onClick={() => setSubMode("qr")}
+            onClick={() => {
+              setSubMode("qr");
+              setQrActive(true);
+              reset();
+            }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-xs font-medium transition-colors cursor-pointer ${
               subMode === "qr"
                 ? "bg-surface text-foreground shadow-sm"
@@ -340,7 +348,11 @@ function RemoteLogin({
             Scan QR
           </button>
           <button
-            onClick={() => setSubMode("bunker")}
+            onClick={() => {
+              setSubMode("bunker");
+              setQrActive(false);
+              reset();
+            }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-xs font-medium transition-colors cursor-pointer ${
               subMode === "bunker"
                 ? "bg-surface text-foreground shadow-sm"
@@ -365,9 +377,9 @@ function RemoteLogin({
           ) : (
             <BunkerLoginView
               key="bunker"
-              isLoading={isLoading}
-              isError={isError}
-              error={error}
+              isLoading={isLoading && !qrActive}
+              isError={isError && !qrActive}
+              error={!qrActive ? error : null}
               bunkerUrl={bunkerUrl}
               setBunkerUrl={setBunkerUrl}
               onLogin={onBunkerLogin}
