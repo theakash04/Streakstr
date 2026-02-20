@@ -136,6 +136,7 @@ export async function createDuoStreak(req: FastifyRequest, reply: FastifyReply) 
     await sendNip04DM(partnerPubkey, message);
     return reply.status(201).send({ message: 'Duo streak created', streak: newStreak });
   } catch (error) {
+    console.log(error);
     return reply.status(500).send({ error: 'Failed to create duo streak' });
   }
 }
