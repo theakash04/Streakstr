@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Flame, Users, Plus } from "lucide-react";
-import { streakApi, type Streak } from "@/lib/api";
+import { streakApi } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { StreakCard } from "@/components/dashboard/StreakCard";
 import { CreateStreakModal } from "@/components/dashboard/CreateStreakModal";
@@ -12,8 +13,6 @@ export const Route = createFileRoute("/dashboard/streaks")({
 });
 
 function StreaksPage() {
-  const [streaks, setStreaks] = useState<Streak[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Get user pubkey from route context
@@ -21,21 +20,17 @@ function StreaksPage() {
 
   useApiErrorToast();
 
-  const fetchStreaks = async () => {
-    try {
-      setIsLoading(true);
-      const res = await streakApi.getAll();
-      setStreaks(res.data.streaks);
-    } catch (error) {
-      console.error("Failed to fetch streaks", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchStreaks();
-  }, []);
+  const {
+    data: streaks = [],
+    isLoading,
+    refetch: refetchStreaks,
+  } = useQuery({
+    queryKey: ["streaks"],
+    queryFn: async () => {
+      const { data } = await streakApi.getAll();
+      return data.streaks;
+    },
+  });
 
   const soloStreaks = streaks.filter((s) => s.type === "solo");
   const duoStreaks = streaks.filter((s) => s.type === "duo");
@@ -140,7 +135,7 @@ function StreaksPage() {
       <CreateStreakModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onCreated={() => fetchStreaks()}
+        onCreated={() => refetchStreaks()}
         streaks={streaks}
         userPubkey={user.pubkey}
       />

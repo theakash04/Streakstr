@@ -94,7 +94,7 @@ export function DashboardTopbar({ pubkey, user }: TopbarProps) {
               <div className="absolute inset-0 bg-brand-500 blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
             </div>
             <span className="text-base font-bold tracking-tight text-foreground group-hover:text-brand-400 transition-colors hidden sm:inline">
-              Streakstr
+              STREAKSTR
             </span>
           </Link>
 

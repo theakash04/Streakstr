@@ -4,7 +4,16 @@ export const HowItWorks: React.FC = () => {
   const steps = [
     {
       num: "01",
-      title: "Follow the Bot",
+      title: (
+        <a
+          href="https://nostria.app/p/npub17kmyqx5r7ec6aqnlfaqlejwt9qk2th5yny82fewvgd4x5k5elpwqnrya96"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand-500 hover:text-brand-400 underline underline-offset-4 decoration-brand-500/30 hover:decoration-brand-500/80 transition-all"
+        >
+          Follow the Bot
+        </a>
+      ),
       text: "Simply follow the official Streakstr bot on Nostr. This automatically initializes your first solo streak.",
     },
     {
@@ -22,7 +31,7 @@ export const HowItWorks: React.FC = () => {
   return (
     <section
       id="how-it-works"
-      className="py-24 bg-section/50 border-y border-outline"
+      className="py-12 sm:py-24 bg-section/50 border-y border-outline"
     >
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -53,7 +62,7 @@ export const HowItWorks: React.FC = () => {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="hidden sm:block relative ">
             {/* Abstract Clock/Window Representation */}
             <div className="aspect-square relative rounded-full border border-outline bg-surface/30 flex items-center justify-center overflow-hidden">
               <div className="absolute inset-0 bg-linear-to-tr from-brand-900/20 to-transparent" />

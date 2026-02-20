@@ -53,23 +53,27 @@ export function ConsolidatedStats({ stats }: ConsolidatedStatsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       {items.map((item, i) => {
         const Content = (
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className={`p-2 sm:p-3 rounded-xl ${item.bg}`}>
-              <item.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${item.color}`} />
+            <div
+              className={`p-2 sm:p-3 rounded-xl ${item.bg} transition-colors duration-300`}
+            >
+              <item.icon
+                className={`w-5 h-5 sm:w-6 sm:h-6 ${item.color} transition-colors duration-300`}
+              />
             </div>
             <div>
-              <p className="text-xl sm:text-2xl font-bold text-foreground">
+              <p className="text-xl sm:text-2xl font-bold text-foreground transition-colors duration-300">
                 {item.value}
               </p>
-              <p className="text-xs text-muted font-medium uppercase tracking-wider">
+              <p className="text-xs text-muted font-medium uppercase tracking-wider transition-colors duration-300">
                 {item.label}
               </p>
             </div>
             {item.highlight && (
-              <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-blue-500 animate-pulse transition-colors duration-300" />
             )}
           </div>
         );
@@ -80,7 +84,7 @@ export function ConsolidatedStats({ stats }: ConsolidatedStatsProps) {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
-            className={`bg-surface border ${item.highlight ? item.border : "border-outline"} rounded-2xl p-4 sm:p-5 relative overflow-hidden transition-all hover:border-opacity-50`}
+            className={`bg-surface border ${item.highlight ? item.border : "border-outline"} rounded-2xl p-4 sm:p-5 relative overflow-hidden transition-all duration-300 hover:border-opacity-50`}
           >
             {item.link ? (
               <Link to={item.link} className="block w-full h-full">

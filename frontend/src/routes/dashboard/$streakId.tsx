@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Flame,
@@ -11,16 +12,18 @@ import {
   VolumeX,
   Heart,
   Shield,
+  User as UserIcon,
   type LucideIcon,
 } from "lucide-react";
 import {
   streakApi,
-  type StreakDetail,
   type StreakSettings,
   type StreakSettingsUpdate,
 } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { CountdownTimer } from "@/components/dashboard/CountdownTimer";
+import { useNostrProfile } from "@/hooks/useNostrProfile";
+import { nip19 } from "nostr-tools";
 
 export const Route = createFileRoute("/dashboard/$streakId")({
   component: StreakDetailPage,
@@ -28,28 +31,37 @@ export const Route = createFileRoute("/dashboard/$streakId")({
 
 function StreakDetailPage() {
   const { streakId } = Route.useParams();
-  const [detail, setDetail] = useState<StreakDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = Route.useRouteContext();
   const [showSettings, setShowSettings] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchDetail = async () => {
-    try {
-      setIsLoading(true);
+  const {
+    data: detail,
+    isLoading,
+    error,
+    refetch: fetchDetail,
+  } = useQuery({
+    queryKey: ["streak", streakId],
+    queryFn: async () => {
       const { data } = await streakApi.getSingle(streakId);
-      setDetail(data.streak);
-    } catch {
-      setError("Failed to load streak details");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      return data.streak;
+    },
+  });
 
-  useEffect(() => {
-    fetchDetail();
-  }, [streakId]);
+  // Partner determination for duo streaks
+  const partnerPubkey = useMemo(() => {
+    if (!detail || !user?.pubkey || detail.streak.type !== "duo") return null;
+    const { user1Pubkey, user2Pubkey } = detail.streak;
+    return user1Pubkey === user.pubkey ? user2Pubkey : user1Pubkey;
+  }, [detail, user?.pubkey]);
+
+  // Fetch partner's profile
+  const { profile: partnerProfile, isLoading: isLoadingProfile } =
+    useNostrProfile(partnerPubkey);
+
+  // Fetch user's profile
+  const { profile: userProfile } = useNostrProfile(user?.pubkey);
 
   const handleDelete = async () => {
     try {
@@ -57,7 +69,11 @@ function StreakDetailPage() {
       await streakApi.deleteStreak(streakId);
       window.location.href = "/dashboard";
     } catch {
-      setError("Failed to delete streak");
+      window.dispatchEvent(
+        new CustomEvent("api-error", {
+          detail: { message: "Failed to delete streak" },
+        }),
+      );
       setIsDeleting(false);
     }
   };
@@ -68,7 +84,7 @@ function StreakDetailPage() {
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <p className="text-status-chaos mb-4">
-            {error || "Streak not found"}
+            {error instanceof Error ? error.message : "Streak not found"}
           </p>
           <Link
             to="/dashboard"
@@ -103,161 +119,287 @@ function StreakDetailPage() {
   };
 
   return (
-    <div className="max-w-8xl space-y-6">
-      {/* Back + Title */}
-      <div className="flex items-center gap-4">
-        <Link
-          to="/dashboard"
-          className="p-2 rounded-xl bg-surface border border-outline hover:bg-outline transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 text-muted" />
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold text-foreground">{streak.name}</h1>
-          <div className="flex items-center gap-3 mt-1">
-            <span
-              className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${statusStyles[streak.status]}`}
-            >
-              {streak.status}
-            </span>
-            <span className="text-xs text-muted capitalize">
-              {streak.type} streak
-            </span>
+    <div className="max-w-8xl space-y-6 sm:space-y-8">
+      {/* Back + Title Row */}
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+        <div className="flex items-start gap-4 flex-1">
+          <Link
+            to="/dashboard"
+            className="p-2.5 rounded-xl bg-surface border border-outline hover:bg-outline transition-colors mt-1 shrink-0 group cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 text-muted group-hover:text-foreground transition-colors group-hover:-translate-x-0.5" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight truncate">
+              {streak.name}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 mt-2">
+              <span
+                className={`text-xs font-bold px-3 py-1 rounded-full border uppercase tracking-widest ${statusStyles[streak.status]}`}
+              >
+                {streak.status}
+              </span>
+              <span className="text-sm font-medium text-muted capitalize px-3 py-1 bg-surface border border-outline rounded-full">
+                {streak.type} streak
+              </span>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           {streak.status !== "pending" && streak.status !== "broken" && (
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="p-2 rounded-xl bg-surface border border-outline hover:bg-outline transition-colors cursor-pointer"
+              className="p-2.5 rounded-xl bg-surface border border-outline hover:bg-outline hover:text-foreground transition-colors cursor-pointer"
             >
-              <Settings className="w-4 h-4 text-muted" />
+              <Settings className="w-5 h-5 text-muted" />
             </button>
           )}
           <button
             onClick={() => setShowDeleteConfirm(true)}
-            className="p-2 rounded-xl bg-surface border border-status-chaos/20 hover:bg-status-chaos/10 transition-colors cursor-pointer"
+            className="p-2.5 rounded-xl bg-surface border border-status-chaos/20 hover:bg-status-chaos/10 transition-colors cursor-pointer"
           >
-            <Trash2 className="w-4 h-4 text-status-chaos" />
+            <Trash2 className="w-5 h-5 text-status-chaos" />
           </button>
         </div>
       </div>
 
-      {/* Main Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Duo Streak Banner & Timer */}
+      {streak.type === "duo" && partnerPubkey && (
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-surface border border-outline rounded-2xl p-6 text-center"
+          className={`relative overflow-hidden bg-surface border ${
+            windowCompleted ? "border-status-gentle/30" : "border-brand-500/30"
+          } rounded-3xl p-6 sm:p-10 flex flex-col items-center justify-center shadow-lg group`}
         >
-          <div className="w-12 h-12 bg-brand-500/10 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <Flame className="w-6 h-6 text-brand-500" />
-          </div>
-          <p className="text-3xl font-bold text-foreground">
-            {streak.currentCount}
-          </p>
-          <p className="text-xs text-muted mt-1">Current Count</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-surface border border-outline rounded-2xl p-6 text-center"
-        >
-          <div className="w-12 h-12 bg-status-gentle/10 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <Trophy className="w-6 h-6 text-status-gentle" />
-          </div>
-          <p className="text-3xl font-bold text-foreground">
-            {streak.highestCount}
-          </p>
-          <p className="text-xs text-muted mt-1">Best Record</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-surface border border-outline rounded-2xl p-6 text-center"
-        >
+          {/* Subtle Background Glow */}
           <div
-            className={`w-12 h-12 ${windowCompleted ? "bg-status-gentle/10" : "bg-brand-400/10"} rounded-xl flex items-center justify-center mx-auto mb-3`}
-          >
-            <Clock
-              className={`w-6 h-6 ${windowCompleted ? "text-status-gentle" : "text-brand-400"}`}
-            />
-          </div>
-          {streak.deadline ? (
-            <CountdownTimer
-              deadline={streak.deadline}
-              completed={windowCompleted}
-            />
-          ) : (
-            <p className="text-xl font-bold text-muted">—</p>
-          )}
-          <p className="text-xs text-muted mt-1">
-            {windowCompleted ? "Next Deadline" : "Time Left"}
-          </p>
-        </motion.div>
-      </div>
+            className={`absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-md h-full bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] ${windowCompleted ? "from-status-gentle/20 via-transparent to-transparent" : "from-brand-500/20 via-transparent to-transparent"} pointer-events-none opacity-60`}
+          />
 
-      {/* Timeline Info */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="bg-surface border border-outline rounded-2xl p-6"
-      >
-        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-muted" />
-          Timeline
-        </h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <TimelineItem label="Created" value={formatDate(streak.createdAt)} />
-          <TimelineItem
-            label="Started"
-            value={streak.startedAt ? formatDate(streak.startedAt) : "—"}
-          />
-          <TimelineItem
-            label="Last Activity"
-            value={
-              streak.lastActivityAt ? formatDate(streak.lastActivityAt) : "—"
-            }
-          />
-          <TimelineItem
-            label="Deadline"
-            value={streak.deadline ? formatDate(streak.deadline) : "—"}
-          />
-        </div>
-      </motion.div>
-
-      {/* Break History */}
-      {history && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-surface border border-outline rounded-2xl p-6"
-        >
-          <h3 className="text-sm font-semibold text-foreground mb-4">
-            Last Break
-          </h3>
-          <div className="flex items-center gap-6">
-            <div>
-              <p className="text-xs text-muted">Count before break</p>
-              <p className="text-lg font-bold text-foreground">
-                {history.countBeforeBreak}
-              </p>
+          <div className="flex flex-row items-center justify-between w-full max-w-2xl relative z-10 gap-2 sm:gap-4">
+            {/* User */}
+            <div
+              className="flex flex-col items-center gap-3 w-1/3 cursor-pointer"
+              onClick={() =>
+                window.open(
+                  `https://nostria.app/p/${nip19.npubEncode(user?.pubkey)}`,
+                  "_blank",
+                )
+              }
+            >
+              <Avatar
+                profile={userProfile}
+                pubkey={user?.pubkey}
+                className="w-16 h-16 sm:w-24 sm:h-24 ring-4 ring-background shadow-xl rounded-full transition-transform "
+              />
+              <span className="text-sm sm:text-base font-bold text-foreground bg-background/80 px-4 py-1.5 rounded-full border border-outline backdrop-blur-sm shadow-sm">
+                You
+              </span>
             </div>
-            <div>
-              <p className="text-xs text-muted">Broken at</p>
-              <p className="text-sm font-medium text-foreground">
-                {formatDate(history.brokenAt)}
-              </p>
+
+            {/* Connection / Timer */}
+            <div className="flex flex-col items-center justify-center w-1/3 min-w-[120px] sm:min-w-[160px]">
+              <div
+                className={`flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 mb-4 rounded-full shadow-inner border transition-transform duration-500 ${
+                  windowCompleted
+                    ? "bg-status-gentle/10 text-status-gentle border-status-gentle/20"
+                    : "bg-brand-500/10 text-brand-500 border-brand-500/20"
+                }`}
+              >
+                {windowCompleted ? (
+                  <Clock className="w-6 h-6 sm:w-8 sm:h-8" />
+                ) : (
+                  <Flame className="w-6 h-6 sm:w-8 sm:h-8" />
+                )}
+              </div>
+
+              <div className="text-xl sm:text-4xl font-black tracking-tighter text-foreground whitespace-nowrap mb-1 flex items-center justify-center drop-shadow-sm">
+                {streak.deadline ? (
+                  <CountdownTimer
+                    deadline={streak.deadline}
+                    completed={windowCompleted}
+                  />
+                ) : (
+                  <span className="text-muted">—</span>
+                )}
+              </div>
+              <span
+                className={`text-[10px] sm:text-sm font-bold uppercase tracking-widest text-center ${windowCompleted ? "text-status-gentle" : "text-brand-500"}`}
+              >
+                {windowCompleted ? "Next Deadline" : "Time Left"}
+              </span>
+            </div>
+
+            {/* Partner */}
+            <div
+              className="flex flex-col items-center gap-3 w-1/3 cursor-pointer"
+              onClick={() =>
+                window.open(
+                  `https://nostria.app/p/${nip19.npubEncode(partnerPubkey)}`,
+                  "_blank",
+                )
+              }
+            >
+              <Avatar
+                profile={partnerProfile}
+                pubkey={partnerPubkey}
+                isLoading={isLoadingProfile}
+                className="w-16 h-16 sm:w-24 sm:h-24 ring-4 ring-background shadow-xl rounded-full transition-transform"
+              />
+              <span className="text-sm sm:text-base font-bold text-foreground bg-background/80 px-4 py-1.5 rounded-full border border-outline backdrop-blur-sm shadow-sm max-w-[100px] sm:max-w-[160px] truncate text-center">
+                {isLoadingProfile
+                  ? "..."
+                  : partnerProfile?.name ||
+                    nip19.npubEncode(partnerPubkey).slice(0, 8)}
+              </span>
             </div>
           </div>
         </motion.div>
       )}
+
+      {/* Stats & Info Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        {/* Current & Best Record Unified Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-surface border border-outline rounded-3xl p-6 sm:p-8 flex flex-col justify-center relative overflow-hidden group hover:border-brand-500/30 transition-colors shadow-sm"
+        >
+          <div className="flex items-center justify-around w-full relative z-10">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-brand-500/10 text-brand-500 rounded-2xl flex items-center justify-center mb-3 shadow-inner border border-brand-500/20">
+                <Flame className="w-6 h-6" />
+              </div>
+              <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tight">
+                {streak.currentCount}
+              </p>
+              <p className="text-[10px] sm:text-xs font-semibold text-muted mt-2 uppercase tracking-widest">
+                Current Count
+              </p>
+            </div>
+
+            <div className="w-px h-24 bg-outline/50 hidden sm:block mx-4" />
+
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-status-gentle/10 text-status-gentle rounded-2xl flex items-center justify-center mb-3 shadow-inner border border-status-gentle/20">
+                <Trophy className="w-6 h-6" />
+              </div>
+              <p className="text-4xl sm:text-5xl font-black text-foreground tracking-tight">
+                {streak.highestCount}
+              </p>
+              <p className="text-[10px] sm:text-xs font-semibold text-muted mt-2 uppercase tracking-widest">
+                Best Record
+              </p>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Timeline Info */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-surface border border-outline rounded-3xl p-6 sm:p-8 flex flex-col justify-center shadow-sm hover:border-outline/80 transition-colors"
+        >
+          <h3 className="text-sm sm:text-base font-bold text-foreground mb-4 sm:mb-6 flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-surface border border-outline flex items-center justify-center shadow-inner">
+              <Calendar className="w-4 h-4 text-muted" />
+            </div>
+            Timeline
+          </h3>
+          <div className="grid grid-cols-2 gap-4 sm:gap-6">
+            <TimelineItem
+              label="Created"
+              value={formatDate(streak.createdAt)}
+            />
+            <TimelineItem
+              label="Started"
+              value={streak.startedAt ? formatDate(streak.startedAt) : "—"}
+            />
+            <TimelineItem
+              label="Last Activity"
+              value={
+                streak.lastActivityAt ? formatDate(streak.lastActivityAt) : "—"
+              }
+            />
+            <TimelineItem
+              label="Deadline"
+              value={streak.deadline ? formatDate(streak.deadline) : "—"}
+            />
+          </div>
+        </motion.div>
+
+        {/* Solo Streak Timer (Only show here if NOT a duo streak to avoid duplicate) */}
+        {streak.type !== "duo" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className={`bg-linear-to-br from-surface ${windowCompleted ? "to-status-gentle/5" : "to-brand-400/5"} border border-outline rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center relative overflow-hidden group hover:border-outline transition-colors ${history ? "lg:col-span-1" : "lg:col-span-2"}`}
+          >
+            <div
+              className={`absolute -right-4 -top-4 w-32 h-32 ${windowCompleted ? "bg-status-gentle/10" : "bg-brand-400/10"} rounded-full blur-2xl transition-colors`}
+            />
+            <div
+              className={`w-14 h-14 ${windowCompleted ? "bg-status-gentle/10 text-status-gentle border-status-gentle/20" : "bg-brand-400/10 text-brand-400 border-brand-400/20"} rounded-2xl flex items-center justify-center mb-4 relative z-10 shadow-inner border`}
+            >
+              <Clock className="w-7 h-7" />
+            </div>
+            <div className="relative z-10 flex items-center justify-center text-3xl sm:text-4xl font-black tracking-tight w-full h-12">
+              {streak.deadline ? (
+                <CountdownTimer
+                  deadline={streak.deadline}
+                  completed={windowCompleted}
+                />
+              ) : (
+                <p className="text-muted">—</p>
+              )}
+            </div>
+            <p className="text-[10px] sm:text-xs font-semibold text-muted mt-3 relative z-10 uppercase tracking-widest">
+              {windowCompleted ? "Next Deadline" : "Time Left"}
+            </p>
+          </motion.div>
+        )}
+
+        {/* Break History */}
+        {history && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className={`bg-linear-to-br from-status-chaos/5 to-surface border border-status-chaos/10 rounded-3xl p-6 sm:p-8 flex flex-col justify-center relative overflow-hidden shadow-sm ${streak.type === "duo" ? "lg:col-span-2" : "lg:col-span-1"}`}
+          >
+            <div className="absolute -top-4 -right-4 p-8 opacity-5 pointer-events-none">
+              <Trophy className="w-32 h-32 text-status-chaos" />
+            </div>
+            <h3 className="text-sm sm:text-base font-bold text-foreground mb-4 sm:mb-6 flex items-center gap-2.5 relative z-10">
+              <div className="w-8 h-8 rounded-xl bg-status-chaos/10 border border-status-chaos/20 flex items-center justify-center">
+                <Trash2 className="w-4 h-4 text-status-chaos" />
+              </div>
+              Last Break
+            </h3>
+            <div className="flex flex-row gap-8 sm:gap-12 relative z-10">
+              <div>
+                <p className="text-[10px] sm:text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                  Count before
+                </p>
+                <p className="text-2xl sm:text-4xl font-black text-status-chaos tracking-tighter">
+                  {history.countBeforeBreak}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] sm:text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+                  Broken at
+                </p>
+                <p className="text-sm sm:text-lg font-bold text-foreground mt-1">
+                  {formatDate(history.brokenAt)}
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </div>
 
       {/* Settings Panel */}
       <AnimatePresence>
@@ -288,11 +430,63 @@ function StreakDetailPage() {
 
 /* ======================== Sub-components ======================== */
 
+function Avatar({
+  profile,
+  className = "",
+  isLoading,
+}: {
+  profile?: any;
+  pubkey?: string;
+  isLoading?: boolean;
+  className?: string;
+}) {
+  if (isLoading)
+    return (
+      <div
+        className={`animate-pulse bg-surface border border-outline ${className}`}
+      />
+    );
+  if (profile?.picture) {
+    return (
+      <>
+        <img
+          src={profile.picture}
+          alt={profile.name || "User avatar"}
+          className={`object-cover bg-surface border border-outline ${className}`}
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+            const next = (e.target as HTMLImageElement)
+              .nextElementSibling as HTMLElement;
+            if (next) {
+              next.style.display = "flex";
+            }
+          }}
+        />
+        <div
+          style={{ display: "none" }}
+          className={`bg-brand-500/10 flex-col items-center justify-center border border-brand-500/20 text-brand-500 ${className}`}
+        >
+          <UserIcon className="w-1/2 h-1/2" />
+        </div>
+      </>
+    );
+  }
+  return (
+    <div
+      className={`bg-brand-500/10 flex flex-col items-center justify-center border border-brand-500/20 text-brand-500 ${className}`}
+    >
+      <UserIcon className="w-1/2 h-1/2" />
+    </div>
+  );
+}
+
 function TimelineItem({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs text-muted">{label}</p>
-      <p className="text-sm font-medium text-foreground mt-0.5">{value}</p>
+      <p className="text-[10px] sm:text-[11px] font-semibold text-muted uppercase tracking-wider mb-1">
+        {label}
+      </p>
+      <p className="text-sm sm:text-base font-bold text-foreground">{value}</p>
     </div>
   );
 }
@@ -339,15 +533,21 @@ function SettingsPanel({
 
   return (
     <motion.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
-      className="overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto"
+      onClick={onClose}
     >
-      <div className="bg-surface border border-outline rounded-2xl overflow-hidden">
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="bg-surface border border-outline rounded-2xl w-full max-w-lg overflow-hidden my-auto flex flex-col max-h-[90vh] shadow-xl relative"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-outline bg-background/50">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-outline bg-background/50 shrink-0">
           <h3 className="text-sm font-semibold text-foreground flex items-center gap-2.5">
             <div className="p-1.5 rounded-lg bg-brand-500/10">
               <Settings className="w-3.5 h-3.5 text-brand-500" />
@@ -362,7 +562,7 @@ function SettingsPanel({
           </button>
         </div>
 
-        <div className="px-5 sm:px-6 py-5 space-y-6">
+        <div className="px-5 sm:px-6 py-5 space-y-6 overflow-y-auto">
           {/* Notifications Section */}
           <div className="space-y-4">
             <p className="text-[11px] font-semibold text-muted uppercase tracking-wider">
@@ -538,7 +738,7 @@ function SettingsPanel({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2.5 px-5 sm:px-6 py-4 border-t border-outline bg-background/50">
+        <div className="flex items-center justify-end gap-2.5 px-5 sm:px-6 py-4 border-t border-outline bg-background/50 shrink-0">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm text-muted hover:text-foreground rounded-xl hover:bg-surface transition-colors cursor-pointer font-medium"
@@ -553,7 +753,7 @@ function SettingsPanel({
             {isSaving ? "Saving..." : "Save Settings"}
           </button>
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }

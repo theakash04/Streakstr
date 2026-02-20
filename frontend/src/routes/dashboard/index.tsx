@@ -1,58 +1,61 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 
-import { streakApi, type Streak, type LogEntry } from "@/lib/api";
+import { streakApi } from "@/lib/api";
 import { DailyProgress } from "@/components/dashboard/DailyProgress";
 import { ConsolidatedStats } from "@/components/dashboard/ConsolidatedStats";
 import { ActivityGraph } from "@/components/dashboard/ActivityGraph";
 import { CreateStreakModal } from "@/components/dashboard/CreateStreakModal";
 import { useApiErrorToast } from "@/hooks/useApiErrorToast";
-import { Flame, Plus } from "lucide-react";
-import { motion } from "framer-motion";
+import { RefreshCw } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/")({
   component: DashboardOverview,
 });
 
 function DashboardOverview() {
-  const [streaks, setStreaks] = useState<Streak[]>([]);
-  const [unreadLogs, setUnreadLogs] = useState<LogEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const { user } = Route.useRouteContext() as { user: { pubkey: string } };
 
   useApiErrorToast();
 
-  const fetchData = useCallback(async (silent = false) => {
-    try {
-      if (!silent) setIsLoading(true);
+  const {
+    data: streaks = [],
+    isLoading: isLoadingStreaks,
+    error: streaksError,
+    refetch: refetchStreaks,
+    isRefetching: isRefetchingStreaks,
+  } = useQuery({
+    queryKey: ["streaks"],
+    queryFn: async () => {
+      const { data } = await streakApi.getAll();
+      return data.streaks;
+    },
+  });
 
-      const [streaksRes, logsRes] = await Promise.all([
-        streakApi.getAll(),
-        streakApi.getUnreadLogs(),
-      ]);
-      setStreaks(streaksRes.data.streaks);
-      setUnreadLogs(logsRes.data.logs);
-      setError(null);
-    } catch {
-      if (!silent) setError("Failed to load dashboard data");
-    } finally {
-      if (!silent) setIsLoading(false);
-    }
-  }, []);
+  const {
+    data: unreadLogs = [],
+    isLoading: isLoadingLogs,
+    error: logsError,
+    refetch: refetchLogs,
+  } = useQuery({
+    queryKey: ["unreadLogs"],
+    queryFn: async () => {
+      const { data } = await streakApi.getUnreadLogs();
+      return data.logs;
+    },
+  });
 
-  // Initial fetch
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const isLoading = isLoadingStreaks || isLoadingLogs;
+  const error =
+    streaksError || logsError ? "Failed to load dashboard data" : null;
 
-  // Auto-refresh every 60 seconds (silent)
-  useEffect(() => {
-    const interval = setInterval(() => fetchData(true), 60_000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+  const handleRefresh = () => {
+    refetchStreaks();
+    refetchLogs();
+  };
 
   const activeStreaks = streaks.filter((s) => s.status === "active");
   const highCount = streaks.reduce(
@@ -78,7 +81,7 @@ function DashboardOverview() {
         <div className="text-center">
           <p className="text-status-chaos mb-4">{error}</p>
           <button
-            onClick={() => fetchData()}
+            onClick={handleRefresh}
             className="text-brand-500 hover:text-brand-400 text-sm font-medium cursor-pointer"
           >
             Try again
@@ -90,6 +93,21 @@ function DashboardOverview() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
+      {/* Floating Refresh Button */}
+      <button
+        onClick={handleRefresh}
+        disabled={isRefetchingStreaks}
+        title="Refresh data"
+        className="fixed bottom-6 right-6 sm:bottom-8 sm:right-8 z-50 flex items-center gap-2 bg-brand-600 hover:bg-brand-500 text-white p-3.5 sm:px-5 sm:py-3.5 rounded-full shadow-lg shadow-brand-900/30 transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer disabled:opacity-80 disabled:hover:scale-100 group"
+      >
+        <RefreshCw
+          className={`w-5 h-5 ${isRefetchingStreaks ? "animate-spin" : "transition-transform duration-500 group-hover:rotate-180"}`}
+        />
+        <span className="hidden sm:inline text-sm font-semibold tracking-wide">
+          {isRefetchingStreaks ? "Refreshing..." : "Refresh"}
+        </span>
+      </button>
+
       {/* Daily Progress Section */}
       <DailyProgress
         streaks={streaks}
@@ -116,7 +134,7 @@ function DashboardOverview() {
       <CreateStreakModal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        onCreated={() => fetchData()}
+        onCreated={() => refetchStreaks()}
         streaks={streaks}
         userPubkey={user.pubkey}
       />
