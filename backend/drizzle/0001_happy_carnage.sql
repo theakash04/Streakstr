@@ -1,0 +1,1 @@
+ALTER TABLE "streaks" ALTER COLUMN "invite_status" DROP DEFAULT;
