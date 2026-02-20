@@ -25,7 +25,7 @@ fastify.setValidatorCompiler(validatorCompiler);
 fastify.setSerializerCompiler(serializerCompiler);
 
 await fastify.register(cors, {
-  origin: process.env.FRONTEND_URL?.split(',').map((s) => s.trim()) || ['http://localhost:3000'],
+  origin: process.env.CORS?.split(',').map((s) => s.trim()) || ['http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   credentials: true,
 });

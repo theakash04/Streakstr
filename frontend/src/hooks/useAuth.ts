@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { authApi } from "@/lib/api";
+import type { SimplePool } from "nostr-tools";
 
 // Extend window for NIP-07
 declare global {
@@ -117,76 +118,113 @@ export function useAuth() {
   }, []);
 
   /**
-   * Login with NIP-46 remote signer (Nostr Connect) via bunker:// URL
-   */
-  const loginWithRemoteSigner = useCallback(async (bunkerUrl: string) => {
-    setState({ status: "loading", error: null, pubkey: null });
+ * DROP-IN REPLACEMENT for loginWithRemoteSigner in useAuth.ts
+ *
+ * Fixes:
+ *  - Added timeouts (connect: 30s, getPublicKey: 15s, signEvent: 60s)
+ *  - Pool is always closed in finally block
+ *  - Better error messages at each stage
+ *  - Handles trailing slashes in relay URLs (nostr-tools handles these fine)
+ *  - Console logs at each step so you can see exactly where it stalls
+ *
+ * Tested bunker URL format:
+ *   bunker://7c5e22315050689f460252bc42b1dec133503490bc2d7b658e464b7eb355de05
+ *     ?relay=wss://relay.nsec.app/
+ *     &relay=wss://nostr.oxtr.dev/
+ *     &relay=wss://theforest.nostr1.com/
+ *     &relay=wss://relay.primal.net/
+ */
+const loginWithRemoteSigner = useCallback(async (bunkerUrl: string) => {
+  setState({ status: "loading", error: null, pubkey: null });
 
-    try {
-      const { BunkerSigner, parseBunkerInput } =
-        await import("nostr-tools/nip46");
-      const { SimplePool } = await import("nostr-tools");
+  let pool: InstanceType<typeof SimplePool> | null = null;
 
-      // Parse the bunker URL
-      const bunkerInput = await parseBunkerInput(bunkerUrl);
+  try {
+    const { BunkerSigner, parseBunkerInput } = await import("nostr-tools/nip46");
+    const { SimplePool } = await import("nostr-tools");
+    const { generateSecretKey } = await import("nostr-tools/pure");
 
-      if (!bunkerInput) {
-        throw new Error("Invalid bunker URL");
-      }
+    const cleanUrl = bunkerUrl.trim().replace(/\s+/g, "");
+    console.log("[bunker] Parsing:", cleanUrl);
 
-      // Get relays from backend
-      const relays = await fetchRelays();
-
-      // Generate a local keypair for the session
-      const { generateSecretKey } = await import("nostr-tools/pure");
-      const clientSecretKey = generateSecretKey();
-
-      // Create the bunker signer and connect
-      const pool = new SimplePool();
-      const bunker = BunkerSigner.fromBunker(clientSecretKey, bunkerInput, {
-        pool,
-      });
-      await bunker.connect();
-
-      // Get the remote user's pubkey
-      const pubkey = await bunker.getPublicKey();
-
-      // Request challenge from backend
-      const { data: challengeData } = await authApi.getChallenge(pubkey);
-
-      // Build auth event
-      const unsignedEvent = buildAuthEvent(
-        pubkey,
-        challengeData.challenge,
-        relays,
+    const bunkerInput = await parseBunkerInput(cleanUrl);
+    if (!bunkerInput) {
+      throw new Error(
+        "Invalid bunker URL — make sure it starts with bunker:// and includes relay URLs."
       );
-
-      // Sign with remote signer
-      const signedEvent = await bunker.signEvent(unsignedEvent);
-
-      // Send to backend for verification
-      const { data: verifyData } = await authApi.verify(signedEvent);
-
-      // Close bunker connection
-      try {
-        await bunker.close();
-      } catch {
-        /* connection may already be closed */
-      }
-
-      if (verifyData.success) {
-        setState({ status: "success", error: null, pubkey: verifyData.pubkey });
-        return verifyData;
-      }
-
-      throw new Error("Verification failed");
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Remote signer login failed";
-      setState({ status: "error", error: message, pubkey: null });
-      throw err;
     }
-  }, []);
+
+    // These are the relays the SIGNER is listening on — must use these to connect
+    console.log("[bunker] Signer relays (from bunker URL):", bunkerInput.relays);
+
+    // These are YOUR app's relays — only used as tags in the auth event
+    const appRelays = await fetchRelays();
+    console.log("[bunker] App relays (for event tags):", appRelays);
+
+    const clientSecretKey = generateSecretKey();
+    pool = new SimplePool();
+
+    // BunkerSigner uses bunkerInput.relays internally — no need to pass them again
+    const bunker = BunkerSigner.fromBunker(clientSecretKey, bunkerInput, { pool });
+
+    console.log("[bunker] Connecting to signer via its relays...");
+    await Promise.race([
+      bunker.connect(),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Connection timed out (30s). Is your signer app open and online?")),
+          30_000
+        )
+      ),
+    ]);
+
+    console.log("[bunker] Connected. Requesting public key...");
+    const pubkey = await Promise.race([
+      bunker.getPublicKey(),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("getPublicKey timed out (15s)")), 15_000)
+      ),
+    ]);
+
+    console.log("[bunker] Got pubkey:", pubkey);
+
+    const { data: challengeData } = await authApi.getChallenge(pubkey);
+
+    // Use appRelays (your backend relays) only for the event relay tags
+    const unsignedEvent = buildAuthEvent(pubkey, challengeData.challenge, appRelays);
+    console.log("[bunker] Built unsigned event:", unsignedEvent);
+
+    console.log("[bunker] Requesting signature — approve in your signer app...");
+    const signedEvent = await Promise.race([
+      bunker.signEvent(unsignedEvent),
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Sign request timed out (60s). Did you approve it in your signer?")),
+          60_000
+        )
+      ),
+    ]);
+
+    console.log("[bunker] Signed. Verifying with backend...");
+    const { data: verifyData } = await authApi.verify(signedEvent);
+
+    if (verifyData.success) {
+      setState({ status: "success", error: null, pubkey: verifyData.pubkey });
+      return verifyData;
+    }
+
+    throw new Error("Backend rejected the signed event.");
+  } catch (err: unknown) {
+    console.log(err)
+    const message = err instanceof Error ? err.message : "Remote signer login failed";
+    console.error("[bunker] Failed:", message);
+    setState({ status: "error", error: message, pubkey: null });
+    throw err;
+  } finally {
+    try { pool?.close([]); } catch { /* ignore */ }
+  }
+}, []);
+
 
   /**
    * Login with NIP-46 via QR code (nostrconnect:// URI).

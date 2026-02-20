@@ -40,13 +40,29 @@ export function CountdownTimer({
     );
   }
 
-  if (timeLeft.total <= 0) {
+  if (timeLeft.total <= 0 && !timeLeft.inGracePeriod) {
     return (
       <span
         className={`font-bold text-status-chaos ${compact ? "text-xs" : "text-xl"}`}
       >
         Expired
       </span>
+    );
+  }
+
+  if (timeLeft.inGracePeriod) {
+    if (compact) {
+      return (
+        <span className="text-xs font-medium text-status-firm">
+          Grace: {timeLeft.minutes}m
+        </span>
+      );
+    }
+    return (
+      <div className="font-bold text-2xl tabular-nums text-status-firm">
+        Grace Period: {String(timeLeft.minutes).padStart(2, "0")}:
+        {String(timeLeft.seconds).padStart(2, "0")}
+      </div>
     );
   }
 
@@ -76,12 +92,34 @@ export function CountdownTimer({
 
 function calcTimeLeft(deadline: string) {
   const diff = new Date(deadline).getTime() - Date.now();
-  if (diff <= 0) return { total: 0, hours: 0, minutes: 0, seconds: 0 };
+  const gracePeriod = 60 * 60 * 1000; // 1 hour
+
+  if (diff <= -gracePeriod) {
+    return {
+      total: diff,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+      inGracePeriod: false,
+    };
+  }
+
+  if (diff <= 0) {
+    const graceDiff = diff + gracePeriod;
+    return {
+      total: diff,
+      hours: Math.floor(graceDiff / (1000 * 60 * 60)),
+      minutes: Math.floor((graceDiff / (1000 * 60)) % 60),
+      seconds: Math.floor((graceDiff / 1000) % 60),
+      inGracePeriod: true,
+    };
+  }
 
   return {
     total: diff,
     hours: Math.floor(diff / (1000 * 60 * 60)),
     minutes: Math.floor((diff / (1000 * 60)) % 60),
     seconds: Math.floor((diff / 1000) % 60),
+    inGracePeriod: false,
   };
 }

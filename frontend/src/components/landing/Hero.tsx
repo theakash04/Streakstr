@@ -6,6 +6,8 @@ import { motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 
 export const Hero: React.FC = () => {
+
+
   return (
     <section className="relative pt-32 pb-20 sm:pt-40 sm:pb-32 overflow-hidden">
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
@@ -28,7 +30,7 @@ export const Hero: React.FC = () => {
               Unbreakable
             </span>{" "}
             <br className="hidden sm:block" />
-            Habits on Nostr.
+            Consistency.
           </h1>
 
           <p className="max-w-2xl mx-auto text-xl text-muted mb-10 leading-relaxed px-2 sm:px-0">
@@ -41,8 +43,9 @@ export const Hero: React.FC = () => {
             <Link to={"/login"}>
               <Button
                 variant="primary"
-                className="w-full sm:w-auto text-lg h-14 px-8! shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:shadow-[0_0_30px_rgba(234,88,12,0.5)]"
+                className="w-max sm:w-auto text-lg h-14 px-8! shadow-[0_0_20px_rgba(234,88,12,0.3)] hover:shadow-[0_0_30px_rgba(234,88,12,0.5)]"
                 icon={<Flame className="w-5 h-5" />}
+                
               >
                 Start Your Streak
               </Button>

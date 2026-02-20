@@ -1,27 +1,29 @@
+import { LocalSignerLogin } from "@/components/LocalSignerLogin";
+import { Button } from "@/components/ui/Button";
+import type { QRLoginSession } from "@/hooks/useAuth";
+import { useAuth } from "@/hooks/useAuth";
+import { isMobileDevice } from "@/hooks/useLocalSigner";
+import { getAuthUser, requireGuest } from "@/lib/auth-guard";
 import {
   createFileRoute,
   useNavigate,
   useRouter,
 } from "@tanstack/react-router";
-import { useState, useEffect, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  Flame,
-  Chrome,
-  Smartphone,
-  ArrowLeft,
-  CheckCircle,
   AlertCircle,
+  ArrowLeft,
+  Check,
+  CheckCircle,
+  Chrome,
+  Copy,
+  Flame,
   Link2,
   QrCode,
-  Copy,
-  Check,
+  Smartphone,
 } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { useAuth } from "@/hooks/useAuth";
-import type { QRLoginSession } from "@/hooks/useAuth";
-import { motion, AnimatePresence } from "framer-motion";
-import { requireGuest, getAuthUser } from "@/lib/auth-guard";
 import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export const Route = createFileRoute("/login")({
   beforeLoad: requireGuest,
@@ -34,6 +36,7 @@ function LoginPage() {
   const [method, setMethod] = useState<LoginMethod>("extension");
   const [bunkerUrl, setBunkerUrl] = useState("");
   const navigate = useNavigate();
+
   const router = useRouter();
   const {
     isLoading,
@@ -42,10 +45,16 @@ function LoginPage() {
     error,
     pubkey,
     loginWithExtension,
-    loginWithRemoteSigner,
     loginWithQR,
+    loginWithRemoteSigner,
     reset,
   } = useAuth();
+
+  useLayoutEffect(() => {
+    if (isMobileDevice()) {
+      setMethod("remote");
+    }
+  }, []);
 
   /**
    * After successful login, refresh the router's auth context
@@ -72,18 +81,6 @@ function LoginPage() {
     try {
       await loginWithRemoteSigner(bunkerUrl.trim());
       setTimeout(() => refreshAuthAndNavigate(), 1500);
-    } catch {
-      // error is already set in hook
-    }
-  };
-
-  const handleQRLogin = async () => {
-    try {
-      const session = await loginWithQR();
-      const result = await session.promise;
-      if (result) {
-        setTimeout(() => refreshAuthAndNavigate(), 1500);
-      }
     } catch {
       // error is already set in hook
     }
@@ -168,11 +165,8 @@ function LoginPage() {
                 bunkerUrl={bunkerUrl}
                 setBunkerUrl={setBunkerUrl}
                 onBunkerLogin={handleRemoteLogin}
-                onQRLogin={handleQRLogin}
                 loginWithQR={loginWithQR}
-                onSuccess={() =>
-                  setTimeout(() => refreshAuthAndNavigate(), 1500)
-                }
+                onSuccess={() => setTimeout(() => refreshAuthAndNavigate(), 1500)}
                 reset={reset}
               />
             )}
@@ -275,8 +269,6 @@ function ExtensionLogin({
   );
 }
 
-type RemoteSubMode = "bunker" | "qr";
-
 function RemoteLogin({
   isLoading,
   isError,
@@ -284,7 +276,6 @@ function RemoteLogin({
   bunkerUrl,
   setBunkerUrl,
   onBunkerLogin,
-  onQRLogin,
   loginWithQR,
   onSuccess,
   reset,
@@ -295,14 +286,11 @@ function RemoteLogin({
   bunkerUrl: string;
   setBunkerUrl: (url: string) => void;
   onBunkerLogin: () => void;
-  onQRLogin: () => void;
   loginWithQR: () => Promise<QRLoginSession>;
   onSuccess: () => void;
   reset: () => void;
 }) {
-  const [subMode, setSubMode] = useState<RemoteSubMode>("qr");
-  // Track whether the QR flow is the one that set isLoading
-  const [qrActive, setQrActive] = useState(true);
+  const [subMode, setSubMode] = useState<"bunker" | "qr">("bunker");
 
   return (
     <motion.div
@@ -312,7 +300,7 @@ function RemoteLogin({
       transition={{ duration: 0.2 }}
     >
       <div className="space-y-4">
-        <div className="bg-section/80 border border-outline rounded-xl p-4">
+        {/* <div className="bg-section/80 border border-outline rounded-xl p-4">
           <h3 className="text-sm font-medium text-foreground mb-2">
             Remote Signer (NIP-46)
           </h3>
@@ -328,29 +316,12 @@ function RemoteLogin({
             </a>{" "}
             or another NIP-46 compatible signer.
           </p>
-        </div>
+        </div> */}
 
-        {/* Sub-mode toggle */}
         <div className="flex gap-1 p-0.5 bg-section/60 rounded-lg">
           <button
             onClick={() => {
-              setSubMode("qr");
-              setQrActive(true);
-              reset();
-            }}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-              subMode === "qr"
-                ? "bg-surface text-foreground shadow-sm"
-                : "text-muted hover:text-foreground"
-            }`}
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            Scan QR
-          </button>
-          <button
-            onClick={() => {
               setSubMode("bunker");
-              setQrActive(false);
               reset();
             }}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-xs font-medium transition-colors cursor-pointer ${
@@ -362,10 +333,34 @@ function RemoteLogin({
             <Link2 className="w-3.5 h-3.5" />
             Bunker URL
           </button>
+          <button
+            onClick={() => {
+              setSubMode("qr");
+              reset();
+            }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+              subMode === "qr"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted hover:text-foreground"
+            }`}
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            Scan QR
+          </button>
         </div>
 
         <AnimatePresence mode="wait">
-          {subMode === "qr" ? (
+          {subMode === "bunker" ? (
+            <LocalSignerLogin
+              key="bunker"
+              bunkerUrl={bunkerUrl}
+              setBunkerUrl={setBunkerUrl}
+              onBunkerLogin={onBunkerLogin}
+              isBunkerLoading={isLoading}
+              isBunkerError={isError}
+              bunkerError={error}
+            />
+          ) : (
             <QRLoginView
               key="qr"
               isLoading={isLoading}
@@ -373,16 +368,6 @@ function RemoteLogin({
               error={error}
               loginWithQR={loginWithQR}
               onSuccess={onSuccess}
-            />
-          ) : (
-            <BunkerLoginView
-              key="bunker"
-              isLoading={isLoading && !qrActive}
-              isError={isError && !qrActive}
-              error={!qrActive ? error : null}
-              bunkerUrl={bunkerUrl}
-              setBunkerUrl={setBunkerUrl}
-              onLogin={onBunkerLogin}
             />
           )}
         </AnimatePresence>
@@ -418,10 +403,10 @@ function QRLoginView({
           session.abort();
           return;
         }
+
         sessionRef.current = session;
         setQrUri(session.uri);
 
-        // Wait for signer to connect and complete auth
         await session.promise;
         if (!cancelled) {
           onSuccess();
@@ -456,7 +441,6 @@ function QRLoginView({
       <div className="space-y-4">
         {qrUri ? (
           <>
-            {/* QR Code */}
             <div className="flex flex-col items-center gap-3">
               <div className="bg-white p-4 rounded-xl">
                 <QRCodeSVG
@@ -467,12 +451,10 @@ function QRLoginView({
                 />
               </div>
 
-              <p className="text-xs text-muted text-center max-w-[280px]">
-                Scan this QR code with Amber or another NIP-46 signer to
-                connect.
+              <p className="text-xs text-muted text-center max-w-70">
+                Scan with Amber or another NIP-46 signer to connect.
               </p>
 
-              {/* Copy URI button */}
               <button
                 onClick={handleCopy}
                 className="flex items-center gap-1.5 text-xs text-subtle hover:text-foreground transition-colors cursor-pointer"
@@ -486,84 +468,19 @@ function QRLoginView({
               </button>
             </div>
 
-            {/* Waiting indicator */}
             {isLoading && (
               <div className="flex items-center justify-center gap-2 py-2">
                 <div className="w-2 h-2 bg-brand-500 rounded-full animate-pulse" />
-                <span className="text-sm text-muted">
-                  Waiting for connection...
-                </span>
+                <span className="text-sm text-muted">Waiting for connection...</span>
               </div>
             )}
           </>
         ) : (
-          /* Loading QR */
           <div className="flex flex-col items-center gap-3 py-8">
             <div className="w-6 h-6 border-2 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
             <p className="text-sm text-muted">Generating QR code...</p>
           </div>
         )}
-
-        {isError && <ErrorMessage message={error} />}
-      </div>
-    </motion.div>
-  );
-}
-
-function BunkerLoginView({
-  isLoading,
-  isError,
-  error,
-  bunkerUrl,
-  setBunkerUrl,
-  onLogin,
-}: {
-  isLoading: boolean;
-  isError: boolean;
-  error: string | null;
-  bunkerUrl: string;
-  setBunkerUrl: (url: string) => void;
-  onLogin: () => void;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -5 }}
-      transition={{ duration: 0.15 }}
-    >
-      <div className="space-y-4">
-        <div>
-          <label
-            htmlFor="bunker-url"
-            className="block text-sm font-medium text-foreground mb-2"
-          >
-            Bunker URL
-          </label>
-          <div className="relative">
-            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-subtle" />
-            <input
-              id="bunker-url"
-              type="text"
-              value={bunkerUrl}
-              onChange={(e) => setBunkerUrl(e.target.value)}
-              placeholder="bunker://..."
-              disabled={isLoading}
-              className="w-full bg-section border border-outline rounded-xl pl-10 pr-4 py-3 text-sm text-foreground placeholder:text-subtle focus:outline-none focus:border-brand-500/50 focus:ring-1 focus:ring-brand-500/20 transition-all disabled:opacity-50"
-            />
-          </div>
-        </div>
-
-        <Button
-          variant="primary"
-          className="w-full h-12"
-          onClick={onLogin}
-          isLoading={isLoading}
-          disabled={!bunkerUrl.trim() || isLoading}
-          icon={!isLoading ? <Smartphone className="w-5 h-5" /> : undefined}
-        >
-          {isLoading ? "Connecting to signer..." : "Connect Remote Signer"}
-        </Button>
 
         {isError && <ErrorMessage message={error} />}
       </div>

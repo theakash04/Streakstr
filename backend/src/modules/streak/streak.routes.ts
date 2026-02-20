@@ -11,12 +11,11 @@ import {
   getUserActivity,
   invitationHandling,
   markAllLogsAsRead,
-  SyncDuoStreakInvitation,
   updateStreakSettings,
 } from './streak.controller.ts';
 import {
   DuoStreakBodySchema,
-  invitationHandlingParamSchema,
+  invitationHandlingBodySchema,
   logsBodySchema,
   StreakCommonParamSchema,
   StreaksBodySchema,
@@ -46,33 +45,18 @@ export async function streakRoutes(fastify: FastifyInstance) {
         body: DuoStreakBodySchema,
         description:
           'Create a new duo streak with a partner. The partner will receive an invitation to join the streak.',
-        deprecated: true,
       },
     },
     createDuoStreak
   );
 
   fastify.put(
-    '/duo-invitation/:streakId/sync/:sentAt',
+    '/duo-invitation/respond',
     {
       schema: {
-        params: syncDuoInvitationPramaSchema,
-        description:
-          'Sync a duo streak invitation. This is used to handle the case where the user accepts the invitation on another device and we need to sync the state across devices.',
-        deprecated: true,
-      },
-    },
-    SyncDuoStreakInvitation
-  );
-
-  fastify.put(
-    '/duo-invitation/:streakId/respond',
-    {
-      schema: {
-        params: invitationHandlingParamSchema,
+        body: invitationHandlingBodySchema,
         description:
           'Handle a duo streak invitation. This is used when the user accepts or declines a duo streak invitation.',
-        deprecated: true,
       },
     },
     invitationHandling
@@ -100,7 +84,7 @@ export async function streakRoutes(fastify: FastifyInstance) {
   );
 
   fastify.patch(
-    '/:streakId/logs/mark-read',
+    '/logs/mark-read',
     {
       schema: {
         description: 'Mark all logs for a streak as read',
@@ -110,10 +94,9 @@ export async function streakRoutes(fastify: FastifyInstance) {
   );
 
   fastify.patch(
-    '/:streakId/logs/:logsId/acknowledge',
+    '/logs/acknowledge',
     {
       schema: {
-        params: StreakCommonParamSchema,
         body: logsBodySchema,
         description:
           'Acknowledge a specific log entry. This is used when the user wants to acknowledge a log entry without marking all logs as read.',

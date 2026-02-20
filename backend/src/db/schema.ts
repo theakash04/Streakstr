@@ -11,9 +11,10 @@ export const Streaks = pg.pgTable(
     user2Pubkey: pg.text('user2_pubkey'),
 
     inviterPubKey: pg.text('inviter_pubkey'),
-    inviteStatus: pg
-      .varchar('invite_status', { length: 50, enum: ['none', 'pending', 'accepted', 'declined'] })
-      .default('none'),
+    inviteStatus: pg.varchar('invite_status', {
+      length: 50,
+      enum: ['none', 'pending', 'accepted', 'declined'],
+    }),
     inviteSentAt: pg.timestamp('invite_sent_at', { withTimezone: true }),
     inviteAcceptedAt: pg.timestamp('invite_accepted_at', { withTimezone: true }),
     inviteDeclinedAt: pg.timestamp('invite_declined_at', { withTimezone: true }),
@@ -135,7 +136,6 @@ export const Logs = pg.pgTable('logs', {
   acknowledged: pg.boolean('acknowledged').default(false),
   acknowledgedAt: pg.timestamp('acknowledged_at', { withTimezone: true }),
 });
-
 
 export const UserActivity = pg.pgTable(
   'user_activity',

@@ -1,16 +1,15 @@
 import dotenv from 'dotenv';
-import { useWebSocketImplementation } from 'nostr-tools/pool';
-import { Streaks } from '../db/schema.ts';
 import { eq } from 'drizzle-orm';
+import { getPublicKey, nip19 } from 'nostr-tools';
+import { useWebSocketImplementation } from 'nostr-tools/pool';
 import { db } from '../db/index.ts';
+import { Streaks } from '../db/schema.ts';
 import {
-  closeAllSubscriptions,
   catchUpBotFollows,
+  closeAllSubscriptions,
   subscribeToBotFollows,
-  subscribeToBotDMs,
   subscribeToInteractions,
 } from '../utils/Nostr/relaySubscriptionManager.ts';
-import { getPublicKey, nip19 } from 'nostr-tools';
 import { reminderWorker, scheduleRecurringJobs, streakCheckWorker } from './worker.ts';
 
 dotenv.config();
@@ -57,7 +56,7 @@ async function start(): Promise<void> {
 
   // Now start live subscriptions
   subscribeToBotFollows(botPubkey);
-  subscribeToBotDMs(botPubkey);
+  // subscribeToBotDMs(botPubkey);
 
   await scheduleRecurringJobs();
 

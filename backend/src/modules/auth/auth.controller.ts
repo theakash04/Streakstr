@@ -1,12 +1,13 @@
-import type { FastifyRequest, FastifyReply } from 'fastify';
-import {
-  generateChallenge,
-  verifyAuthEvent,
-  createSession,
-  revokeSession,
-} from './auth.service.ts';
-import type { ChallengeRequest, VerifyRequest } from './auth.schema.ts';
+import type { FastifyReply, FastifyRequest } from 'fastify';
+import { sendNip04DM } from '../../utils/Nostr/nostrPublisher.ts';
 import { getUserFromRelays } from '../../utils/Nostr/nostrQueries.ts';
+import type { ChallengeRequest, VerifyRequest } from './auth.schema.ts';
+import {
+  createSession,
+  generateChallenge,
+  revokeSession,
+  verifyAuthEvent,
+} from './auth.service.ts';
 
 const SESSION_COOKIE_NAME = 'streakstr_session';
 const SESSION_MAX_AGE = 86400;
@@ -108,4 +109,10 @@ export async function meHandler(request: FastifyRequest, reply: FastifyReply) {
     user: nostrUser,
     authenticated: true,
   });
+}
+
+export async function testMessage(req: FastifyRequest, res: FastifyReply) {
+  const { npubKey } = req.body as { npubKey: string };
+  await sendNip04DM(npubKey, 'Hello World testing from nip04');
+  res.send('Message sent');
 }

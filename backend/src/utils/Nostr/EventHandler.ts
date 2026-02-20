@@ -10,7 +10,7 @@ import {
   StreakSettings,
   UserActivity,
 } from '../../db/schema.ts';
-import { sendDMReminder, sendNip17DM } from './nostrPublisher.ts';
+import { sendDMReminder, sendNip17DM, sendNip04DM } from './nostrPublisher.ts';
 import { notifyWorkerToRefresh } from '../notifyWorker.ts';
 import {
   getActiveStreaksForPubkey,
@@ -22,6 +22,8 @@ import {
   invalidateBotFollower,
   getSoloStreaksForPubkey,
 } from '../../config/cache.ts';
+import { RELAY_URLS } from '../../config/relay.ts';
+import { fetchEventById } from './nostrQueries.ts';
 
 // Get bot secret key for decrypting DMs
 const { type: keyType, data: botSk } = nip19.decode(process.env.NOSTR_BOT_SECRET_KEY!);
@@ -44,30 +46,56 @@ function getEndOfNextDay(): Date {
   return tomorrow;
 }
 
+function getTodayUTC(date: Date) {
+  return date.toISOString().split('T')[0];
+}
+
+export function getEndOfTodayUTC(date: Date) {
+  const d = new Date(date);
+  d.setUTCHours(23, 59, 59, 999);
+  return d;
+}
+
+function getStartOfTodayUTC(date: Date) {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
 /**
  * Check if an event is a direct interaction WITH a specific pubkey.
  * Returns true if the event tags the target pubkey (reply, react, repost, mention).
  */
-function isInteractionWith(event: NostrEvent, targetPubkey: string): boolean {
-  return event.tags.some((tag) => tag[0] === 'p' && tag[1] === targetPubkey);
-}
+function isInteractionWith(event: NostrEvent, otherPubkey: string): boolean {
+  const taggedPubkeys = event.tags.filter((t) => t[0] === 'p').map((t) => t[1]);
 
+  if (taggedPubkeys.includes(otherPubkey)) return true;
+
+  const referencedEvents = event.tags.filter((t) => t[0] === 'e').map((t) => t[1]);
+
+  if (referencedEvents.length > 0) {
+    // You should ideally verify the referenced event belongs to otherPubkey
+    return true;
+  }
+
+  return false;
+}
 /**
  * Process an interaction event (note, reaction, repost).
  * Uses a rolling 24hr window: each streak has a `deadline`.
  * When activity completes a window → count increments, deadline resets to now + 24hrs.
  */
 export async function processInteractionEvent(event: NostrEvent): Promise<void> {
+  const eventTime = new Date(event.created_at * 1000);
   const pubkey = event.pubkey;
-  const now = new Date();
-  const today = now.toISOString().split('T')[0];
+  const todayUTC = getTodayUTC(eventTime);
 
-  // Track user activity for heatmap (every post counts, regardless of streak)
+  // Heatmap (separate concern)
   await db
     .insert(UserActivity)
     .values({
       pubkey,
-      date: today,
+      date: todayUTC,
       postCount: 1,
       streakActive: true,
     })
@@ -79,127 +107,95 @@ export async function processInteractionEvent(event: NostrEvent): Promise<void> 
       },
     });
 
-  // Find all active streaks involving this pubkey (cached)
   const streaks = await getActiveStreaksForPubkey(pubkey);
 
   for (const streak of streaks) {
-    // If well past deadline + grace period, skip — streakCheckWorker will break it
-    if (streak.deadline && now.getTime() > new Date(streak.deadline).getTime() + GRACE_PERIOD_MS) {
-      continue;
-    }
+    if (streak.status !== 'active') continue;
 
-    // Use the deadline ISO string as the window key for caching
-    const windowKey = streak.deadline ? new Date(streak.deadline).toISOString() : 'initial';
+    const startedAt = new Date(streak.startedAt!);
+    if (eventTime < startedAt) continue;
 
-    const completed = await isWindowCompleted(streak.id, windowKey);
-    if (completed) {
-      continue;
-    }
+    const todayStart = getStartOfTodayUTC(eventTime);
 
+    // ================= SOLO =================
     if (streak.type === 'solo') {
-      const isUser1 = streak.user1Pubkey === pubkey;
-      if (!isUser1) continue; // For solo streaks, only user1 is tracked
+      if (streak.user1Pubkey !== pubkey) continue;
 
-      await db
+      const inserted = await db
         .insert(DailyLogs)
         .values({
           streakId: streak.id,
-          date: new Date().toISOString().split('T')[0],
+          date: todayUTC,
           user1Completed: true,
-          user1EventId: event.id,
-          completedAt: new Date(),
+          completedAt: eventTime,
         })
-        .onConflictDoUpdate({
-          target: [DailyLogs.streakId, DailyLogs.date],
-          set: {
-            user1Completed: true,
-            user1EventId: event.id,
-            completedAt: new Date(),
-          },
-        });
+        .onConflictDoNothing()
+        .returning();
+
+      if (inserted.length === 0) continue; // already completed today
 
       await db
         .update(Streaks)
         .set({
           currentCount: (streak.currentCount ?? 0) + 1,
           highestCount: Math.max(streak.highestCount ?? 0, (streak.currentCount ?? 0) + 1),
-          lastActivityAt: new Date(),
-          deadline: getEndOfNextDay(),
+          lastActivityAt: eventTime,
+          deadline: getEndOfTodayUTC(eventTime),
         })
         .where(eq(Streaks.id, streak.id));
 
-      await markWindowCompleted(streak.id, windowKey);
       await invalidateAllForPubkey(pubkey);
-    } else if (streak.type === 'duo') {
+    }
+
+    // ================= DUO =================
+    else if (streak.type === 'duo') {
       const isUser1 = streak.user1Pubkey === pubkey;
       const isUser2 = streak.user2Pubkey === pubkey;
-      const otherPubkey = isUser1 ? streak.user2Pubkey : isUser2 ? streak.user1Pubkey : null;
+      if (!isUser1 && !isUser2) continue;
+
+      const otherPubkey = isUser1 ? streak.user2Pubkey : streak.user1Pubkey;
+
       if (!otherPubkey) continue;
-      const taggedPubkeys = event.tags.filter((t) => t[0] === 'p').map((t) => t[1]);
 
-      if (!isInteractionWith(event, otherPubkey)) {
-        continue;
+      if (!isInteractionWith(event, otherPubkey)) continue;
+
+      // If reply, ensure referenced event belongs to other user
+      const eTag = event.tags.find((t) => t[0] === 'e');
+      if (eTag) {
+        const referenced = await fetchEventById(eTag[1]);
+        if (!referenced) continue;
+        if (referenced.pubkey !== otherPubkey) continue;
+
+        const referencedTime = new Date(referenced.created_at * 1000);
+        if (referencedTime < startedAt) continue;
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const inserted = await db
+        .insert(DailyLogs)
+        .values({
+          streakId: streak.id,
+          date: todayUTC,
+          user1Completed: true,
+          user2Completed: true,
+          completedAt: eventTime,
+        })
+        .onConflictDoNothing()
+        .returning();
 
-      if (isUser1) {
-        await db
-          .insert(DailyLogs)
-          .values({
-            streakId: streak.id,
-            date: today,
-            user1Completed: true,
-            user1EventId: event.id,
-          })
-          .onConflictDoUpdate({
-            target: [DailyLogs.streakId, DailyLogs.date],
-            set: { user1Completed: true, user1EventId: event.id },
-          });
-      } else if (isUser2) {
-        await db
-          .insert(DailyLogs)
-          .values({
-            streakId: streak.id,
-            date: today,
-            user2Completed: true,
-            user2EventId: event.id,
-          })
-          .onConflictDoUpdate({
-            target: [DailyLogs.streakId, DailyLogs.date],
-            set: { user2Completed: true, user2EventId: event.id },
-          });
-      }
+      if (inserted.length === 0) continue; // already completed today
 
-      // Check if BOTH sides have now interacted
-      const [log] = await db
-        .select()
-        .from(DailyLogs)
-        .where(and(eq(DailyLogs.streakId, streak.id), eq(DailyLogs.date, today)));
+      await db
+        .update(Streaks)
+        .set({
+          currentCount: (streak.currentCount ?? 0) + 1,
+          highestCount: Math.max(streak.highestCount ?? 0, (streak.currentCount ?? 0) + 1),
+          lastActivityAt: eventTime,
+          deadline: getEndOfTodayUTC(eventTime),
+        })
+        .where(eq(Streaks.id, streak.id));
 
-      if (log?.user1Completed && log?.user2Completed) {
-        // Both interacted with each other → streak complete!
-        await db.update(DailyLogs).set({ completedAt: new Date() }).where(eq(DailyLogs.id, log.id));
-
-        await db
-          .update(Streaks)
-          .set({
-            currentCount: (streak.currentCount ?? 0) + 1,
-            highestCount: Math.max(streak.highestCount ?? 0, (streak.currentCount ?? 0) + 1),
-            lastActivityAt: new Date(),
-            deadline: getEndOfNextDay(),
-          })
-          .where(eq(Streaks.id, streak.id));
-
-        await markWindowCompleted(streak.id, windowKey);
-        await invalidateAllForPubkey(streak.user1Pubkey);
-        await invalidateAllForPubkey(streak.user2Pubkey!);
-      } else {
-        console.log(
-          `Duo streak "${streak.name}": ${isUser1 ? 'User1' : 'User2'} interacted with partner. ` +
-            `Waiting for ${isUser1 ? 'User2' : 'User1'}.`
-        );
-      }
+      await invalidateAllForPubkey(streak.user1Pubkey);
+      await invalidateAllForPubkey(streak.user2Pubkey!);
     }
   }
 }
@@ -254,11 +250,11 @@ export async function processFollowEvent(event: NostrEvent): Promise<void> {
   });
 
   // send dm to the new follower that the streak is created
-  await sendNip17DM(
+  await sendNip04DM(
     pubkey,
     `Welcome to Streakstr! 🔥 A solo streak "Daily Nostr Activity" has been created for you.\n\n` +
       `You have 24 hours to post on Nostr to keep your streak alive! Your first deadline is ${deadline.toUTCString()}.\n\n` +
-      `Customize your settings at https://streakstr.akashtwt.in\n\n` +
+      `Customize your settings at ${process.env.FRONTEND_URL}\n\n` +
       `This was created because you followed our bot account.`
   );
 
@@ -341,9 +337,9 @@ export async function processBotDMReply(event: NostrEvent): Promise<void> {
     const soloStreaks = await getSoloStreaksForPubkey(senderPubkey);
 
     if (soloStreaks.length > 0) {
-      await sendNip17DM(
+      await sendNip04DM(
         senderPubkey,
-        `You already have an active solo streak. Reply STOP to delete it and start fresh, or visit https://streakstr.akashtwt.in to manage your streaks.`
+        `You already have an active solo streak. Reply STOP to delete it and start fresh, or visit ${process.env.FRONTEND_URL} to manage your streaks.`
       );
       return;
     }
@@ -369,11 +365,11 @@ export async function processBotDMReply(event: NostrEvent): Promise<void> {
       dmReminder: true,
     });
 
-    await sendNip17DM(
+    await sendNip04DM(
       senderPubkey,
       `A new solo streak "Daily Nostr Activity" has been created for you! 🔥\n\n` +
         `You have 24 hours to post on Nostr. Your first deadline is ${deadline.toUTCString()}.\n\n` +
-        `Customize your settings at https://streakstr.akashtwt.in`
+        `Customize your settings at ${process.env.FRONTEND_URL}`
     );
 
     await invalidateAllForPubkey(senderPubkey);
@@ -408,11 +404,11 @@ export async function processBotDMReply(event: NostrEvent): Promise<void> {
     // Invalidate all caches for this user
     await invalidateAllForPubkey(senderPubkey);
 
-    await sendNip17DM(
+    await sendNip04DM(
       senderPubkey,
       `All your streaks have been stopped and removed. \n\n` +
         `We won't auto-create streaks for you anymore.\n` +
-        `If you change your mind, visit https://streakstr.akashtwt.in to start again.`
+        `If you change your mind, visit ${process.env.FRONTEND_URL} to start again.`
     );
 
     await notifyWorkerToRefresh();
@@ -425,10 +421,10 @@ export async function processBotDMReply(event: NostrEvent): Promise<void> {
     const soloStreaks = await getSoloStreaksForPubkey(senderPubkey);
 
     if (soloStreaks.length === 0) {
-      await sendNip17DM(
+      await sendNip04DM(
         senderPubkey,
         `You don't have any solo streaks yet!\n\n` +
-          `Follow our bot account or visit https://streakstr.akashtwt.in to create one.`
+          `Follow our bot account or visit ${process.env.FRONTEND_URL} to create one.`
       );
       return;
     }
@@ -449,19 +445,19 @@ export async function processBotDMReply(event: NostrEvent): Promise<void> {
         `   Started: ${streak.startedAt ? new Date(streak.startedAt).toLocaleDateString() : 'N/A'}\n\n`;
     }
 
-    statsMessage += `Visit https://streakstr.akashtwt.in for more details!`;
+    statsMessage += `Visit ${process.env.FRONTEND_URL} for more details!`;
 
-    await sendNip17DM(senderPubkey, statsMessage);
+    await sendNip04DM(senderPubkey, statsMessage);
     return;
   }
 
   // ── Generic reply for anything else ──
-  await sendNip17DM(
+  await sendNip04DM(
     senderPubkey,
     `Hey! 👋 I'm the Streakstr bot.\n\n` +
       `Here's what I can do:\n` +
       `  Reply STOP to stop all solo streak tracking\n` +
       `  Reply /stats to see your solo streak info\n\n` +
-      `Want to start a streak? Follow this account or visit https://streakstr.akashtwt.in 🔥`
+      `Want to start a streak? Follow this account or visit ${process.env.FRONTEND_URL} 🔥`
   );
 }

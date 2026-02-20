@@ -4,7 +4,7 @@
 
 Streakstr tracks your daily Nostr activity and turns it into streaks. A bot watches your notes on relays and updates your streak count automatically. No cheating, no hiding — it's all on-chain.
 
-🌐 **[streakstr.akashtwt.in](https://streakstr.akashtwt.in)**
+🌐 **[streakstr.online](https://streakstr.online)**
 
 ---
 
@@ -31,4 +31,4 @@ Streakstr tracks your daily Nostr activity and turns it into streaks. A bot watc
 
 ⚡ [Zap the Developer](https://akashtwt.in/zapme)
 
-🤖 [Sponsor the Streakstr Bot](https://streakstr.akashtwt.in/sponsor)
+🤖 [Sponsor the Streakstr Bot](https://streakstr.online/sponsor)

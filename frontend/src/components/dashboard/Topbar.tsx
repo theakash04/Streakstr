@@ -61,7 +61,7 @@ export function DashboardTopbar({ pubkey, user }: TopbarProps) {
 
   const handleMarkAllRead = async () => {
     try {
-      await streakApi.markAllLogsAsRead("_");
+      await streakApi.markAllLogsAsRead();
       setNotifications([]);
       setShowDropdown(false);
     } catch {
@@ -71,7 +71,7 @@ export function DashboardTopbar({ pubkey, user }: TopbarProps) {
 
   const handleAcknowledge = async (logId: string) => {
     try {
-      await streakApi.acknowledgeLogs("_", logId);
+      await streakApi.acknowledgeLogs(logId);
       setNotifications((prev) => prev.filter((n) => n.id !== logId));
     } catch {
       // silent fail

@@ -11,6 +11,7 @@ export async function getUserFromRelays(pubkey: string): Promise<string | null> 
     const fetchPromise = pool.get(RELAY_URLS, {
       kinds: [0],
       authors: [pubkey],
+      limit: 1,
     });
 
     const user = await Promise.race([fetchPromise, timeoutPromise]);
@@ -19,4 +20,10 @@ export async function getUserFromRelays(pubkey: string): Promise<string | null> 
     console.error('Error fetching user from relays:', error);
     return null;
   }
+}
+
+export async function fetchEventById(eventId: string) {
+  const events = await pool.get(RELAY_URLS, { ids: [eventId] });
+
+  return events ?? null;
 }

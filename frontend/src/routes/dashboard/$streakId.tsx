@@ -126,12 +126,14 @@ function StreakDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className="p-2 rounded-xl bg-surface border border-outline hover:bg-outline transition-colors cursor-pointer"
-          >
-            <Settings className="w-4 h-4 text-muted" />
-          </button>
+          {streak.status !== "pending" && streak.status !== "broken" && (
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="p-2 rounded-xl bg-surface border border-outline hover:bg-outline transition-colors cursor-pointer"
+            >
+              <Settings className="w-4 h-4 text-muted" />
+            </button>
+          )}
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="p-2 rounded-xl bg-surface border border-status-chaos/20 hover:bg-status-chaos/10 transition-colors cursor-pointer"

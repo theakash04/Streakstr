@@ -1,25 +1,27 @@
+import { and, eq, gte, lt, or } from 'drizzle-orm';
 import type { FastifyReply, FastifyRequest } from 'fastify';
+import { z } from 'zod';
+import { invalidateActiveStreaks } from '../../config/cache.ts';
 import { db } from '../../db/index.ts';
 import { Logs, StreakHistory, Streaks, StreakSettings, UserActivity } from '../../db/schema.ts';
-import { and, eq, exists, gte, lt, or } from 'drizzle-orm';
-import { z } from 'zod';
+import { createDuoToken, verifyDuoToken } from '../../utils/DuoInvToken.ts';
+import { sendNip04DM } from '../../utils/Nostr/nostrPublisher.ts';
+import { notifyWorkerToRefresh } from '../../utils/notifyWorker.ts';
 import {
   DuoStreakBodySchema,
-  invitationHandlingParamSchema,
+  invitationHandlingBodySchema,
   logsBodySchema,
   StreakCommonParamSchema,
   StreaksBodySchema,
   StreaksSettingUpdateBodySchema,
-  syncDuoInvitationPramaSchema,
   UserActivityQuerySchema,
 } from './streak.schema.ts';
-import { notifyWorkerToRefresh } from '../../utils/notifyWorker.ts';
-import { invalidateActiveStreaks } from '../../config/cache.ts';
+import { getUserFromRelays } from '../../utils/Nostr/nostrQueries.ts';
+import { getEndOfTodayUTC } from '../../utils/Nostr/EventHandler.ts';
 
 type createStreakBody = z.infer<typeof StreaksBodySchema>;
 type CreateDuoStreakBody = z.infer<typeof DuoStreakBodySchema>;
-type syncDuoInvitationPrama = z.infer<typeof syncDuoInvitationPramaSchema>;
-type invitationHandlingParam = z.infer<typeof invitationHandlingParamSchema>;
+type invitationHandlingBody = z.infer<typeof invitationHandlingBodySchema>;
 type LogsBody = z.infer<typeof logsBodySchema>;
 type streakCommonParams = z.infer<typeof StreakCommonParamSchema>;
 type StreaksSettingUpdateBody = z.infer<typeof StreaksSettingUpdateBodySchema>;
@@ -68,6 +70,12 @@ export async function createSoloStrike(req: FastifyRequest, reply: FastifyReply)
       })
       .returning();
 
+    const message =
+      `Your solo streak "${name}" has been created!` +
+      `\n\n` +
+      `Visit ${process.env.FRONTEND_URL} to view your streak.`;
+    // send dm to user
+    await sendNip04DM(pubkey, message);
     return reply.status(201).send({ message: 'Solo streak created', streak: newStreak });
   } catch (error) {
     return reply.status(500).send({ error: 'Failed to create solo streak' });
@@ -92,7 +100,7 @@ export async function createDuoStreak(req: FastifyRequest, reply: FastifyReply) 
       .where(
         and(
           eq(Streaks.type, 'duo'),
-          eq(Streaks.status, 'active'),
+          or(eq(Streaks.status, 'pending'), eq(Streaks.status, 'active')),
           or(
             and(eq(Streaks.user1Pubkey, pubkey), eq(Streaks.user2Pubkey, partnerPubkey)),
             and(eq(Streaks.user1Pubkey, partnerPubkey), eq(Streaks.user2Pubkey, pubkey))
@@ -115,88 +123,175 @@ export async function createDuoStreak(req: FastifyRequest, reply: FastifyReply) 
         inviterPubKey: pubkey,
         name,
         inviteStatus: 'pending',
+        inviteSentAt: new Date(),
       })
       .returning();
 
+    const token = createDuoToken(pubkey, partnerPubkey);
+    const message =
+      `You've been invited to a duo streak: "${name}"!\n\n` +
+      `Accept or decline this invitation at ${process.env.FRONTEND_URL}/invites?token=${token}&sender=${pubkey}&sname=${name}` +
+      `\nA duo streak means you both need to interact with each other on Nostr every day to keep the streak alive.`;
+
+    await sendNip04DM(partnerPubkey, message);
     return reply.status(201).send({ message: 'Duo streak created', streak: newStreak });
   } catch (error) {
     return reply.status(500).send({ error: 'Failed to create duo streak' });
-  } finally {
-    await notifyWorkerToRefresh();
   }
 }
 
-export async function SyncDuoStreakInvitation(req: FastifyRequest, reply: FastifyReply) {
+export async function invitationHandling(
+  req: FastifyRequest,
+  reply: FastifyReply
+) {
+  const now = new Date();
+
   try {
     const { pubkey } = req.user!;
-    const { streakId, sentAt } = req.params as syncDuoInvitationPrama;
+    const { token, action, streakId } = req.body as invitationHandlingBody;
 
-    // check if the streak exists and the user is the invitee
-    const streak = await db
-      .select()
-      .from(Streaks)
-      .where(and(eq(Streaks.id, streakId), eq(Streaks.inviterPubKey, pubkey)))
-      .limit(1);
-
-    if (streak.length === 0) {
-      return reply.status(404).send({ error: 'Duo streak invitation not found for this user' });
+    if (!token && !streakId) {
+      return reply.status(400).send({
+        error: "Provide either token or streakId",
+      });
     }
 
-    // update the sentAt
-    await db
-      .update(Streaks)
-      .set({ inviteSentAt: new Date(sentAt) })
-      .where(eq(Streaks.id, streakId));
+    let sender: string | null = null;
+    let streak;
 
-    return reply.status(200).send({ message: 'Duo streak invitation synced' });
-  } catch (error) {
-    return reply.status(500).send({ error: 'Failed to sync duo streak invitation' });
-  }
-}
+    // ================= FETCH STREAK =================
+    if (token) {
+      const decoded = verifyDuoToken(token);
 
-export async function invitationHandling(req: FastifyRequest, reply: FastifyReply) {
-  try {
-    const { pubkey } = req.user!;
-    const { streakId, action } = req.params as invitationHandlingParam;
+      if (decoded.receiver !== pubkey) {
+        return reply.status(403).send({
+          error: "You are not authorized to accept this invitation",
+        });
+      }
 
-    // check if streak exists and the accepting user is the invited partner
-    const streak = await db
-      .select()
-      .from(Streaks)
-      .where(
-        and(
-          eq(Streaks.id, streakId),
-          eq(Streaks.user2Pubkey, pubkey),
-          eq(Streaks.inviteStatus, 'pending')
-        )
-      );
+      sender = decoded.sender;
 
-    if (streak.length === 0) {
-      return reply.status(404).send({ error: 'Duo streak invitation not found for this user' });
+      [streak] = await db
+        .select()
+        .from(Streaks)
+        .where(
+          and(
+            eq(Streaks.user1Pubkey, sender),
+            eq(Streaks.user2Pubkey, pubkey),
+            eq(Streaks.inviteStatus, "pending")
+          )
+        );
+    } else {
+      [streak] = await db
+        .select()
+        .from(Streaks)
+        .where(
+          and(
+            eq(Streaks.id, streakId!),
+            eq(Streaks.user2Pubkey, pubkey),
+            eq(Streaks.inviteStatus, "pending")
+          )
+        );
+
+      if (streak) sender = streak.user1Pubkey;
     }
 
-    if (action === 'accept') {
+    if (!streak || !sender) {
+      return reply.status(404).send({
+        error: "Duo streak invitation not found",
+      });
+    }
+
+    // ================= DECLINE =================
+    if (action === "decline") {
       await db
         .update(Streaks)
         .set({
-          inviteStatus: 'accepted',
-          status: 'active',
-          startedAt: new Date(),
-          inviteAcceptedAt: new Date(),
+          inviteStatus: "declined",
+          inviteDeclinedAt: now,
         })
-        .where(eq(Streaks.id, streakId));
+        .where(eq(Streaks.id, streak.id));
 
-      return reply.status(200).send({ message: 'Duo streak invitation accepted' });
+      return reply.status(200).send({
+        message: "Duo streak invitation declined",
+      });
     }
 
-    await db
-      .update(Streaks)
-      .set({ inviteStatus: 'declined', inviteDeclinedAt: new Date() })
-      .where(eq(Streaks.id, streakId));
+    // ================= ACCEPT =================
+    if (action !== "accept") {
+      return reply.status(400).send({
+        error: "Invalid action",
+      });
+    }
 
-    return reply.status(200).send({ message: 'Duo streak invitation declined' });
-  } catch (error) {
-    return reply.status(500).send({ error: 'Failed to handle duo streak invitation' });
+    await db.transaction(async (tx) => {
+      await tx
+        .update(Streaks)
+        .set({
+          inviteStatus: "accepted",
+          status: "active",
+          startedAt: now,
+          deadline: getEndOfTodayUTC(now),
+          currentCount: 0,
+          highestCount: 0,
+          inviteAcceptedAt: now,
+        })
+        .where(eq(Streaks.id, streak!.id));
+
+      await tx
+        .insert(StreakSettings)
+        .values({ streakId: streak!.id })
+        .onConflictDoNothing();
+
+      await tx.insert(Logs).values({
+        action: "Invite accepted",
+        description: `User ${pubkey} accepted duo streak "${streak!.name}"`,
+        startedByPubkey: pubkey,
+        relatedPubkey2: sender!,
+      });
+    });
+
+    // Fetch profiles only after DB success
+    const [senderProfileRaw, receiverProfileRaw] = await Promise.all([
+      getUserFromRelays(sender),
+      getUserFromRelays(pubkey),
+    ]);
+
+    const senderProfile = JSON.parse(senderProfileRaw || "{}");
+    const receiverProfile = JSON.parse(receiverProfileRaw || "{}");
+
+    const senderName =
+      receiverProfile?.name ||
+      receiverProfile?.display_name ||
+      pubkey.slice(0, 8);
+
+    const receiverName =
+      senderProfile?.name ||
+      senderProfile?.display_name ||
+      sender.slice(0, 8);
+
+    const senderMessage = `Your duo streak "${streak.name}" has been accepted by ${senderName}!\n\nVisit ${process.env.FRONTEND_URL} to view your streak.`;
+
+    const receiverMessage = `You have accepted the duo streak "${streak.name}" with ${receiverName}!\n\nVisit ${process.env.FRONTEND_URL} to view your streak.`;
+
+    await Promise.all([
+      sendNip04DM(pubkey, receiverMessage),
+      sendNip04DM(sender, senderMessage),
+    ]);
+
+    return reply.status(200).send({
+      message: "Duo streak invitation accepted",
+    });
+  } catch (error: any) {
+    if (error?.statusCode) {
+      return reply.status(error.statusCode).send({
+        error: error.message,
+      });
+    }
+
+    return reply.status(500).send({
+      error: "Failed to handle duo streak invitation",
+    });
   } finally {
     await notifyWorkerToRefresh();
   }
@@ -292,11 +387,15 @@ export async function getStreakSettings(req: FastifyRequest, reply: FastifyReply
     const { pubkey } = req.user!;
     const { streakId } = req.params as streakCommonParams;
 
-    // if not exists then create it if the streak exists
     const streakExists = await db
       .select()
       .from(Streaks)
-      .where(and(eq(Streaks.id, streakId), eq(Streaks.user1Pubkey, pubkey)))
+      .where(
+        and(
+          eq(Streaks.id, streakId),
+          or(eq(Streaks.user1Pubkey, pubkey), eq(Streaks.user2Pubkey, pubkey))
+        )
+      )
       .limit(1);
 
     if (streakExists.length === 0) {
@@ -330,7 +429,12 @@ export async function updateStreakSettings(req: FastifyRequest, reply: FastifyRe
     const streakExists = await db
       .select()
       .from(Streaks)
-      .where(and(eq(Streaks.id, streakId), eq(Streaks.user1Pubkey, pubkey)))
+      .where(
+        and(
+          eq(Streaks.id, streakId),
+          or(eq(Streaks.user1Pubkey, pubkey), eq(Streaks.user2Pubkey, pubkey))
+        )
+      )
       .limit(1);
 
     if (streakExists.length === 0) {

@@ -11,9 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SponsorRouteImport } from './routes/sponsor'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InvitesRouteImport } from './routes/invites'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
+import { Route as DashboardStreaksRouteImport } from './routes/dashboard/streaks'
+import { Route as DashboardInvitationsRouteImport } from './routes/dashboard/invitations'
 import { Route as DashboardStreakIdRouteImport } from './routes/dashboard/$streakId'
 
 const SponsorRoute = SponsorRouteImport.update({
@@ -24,6 +27,11 @@ const SponsorRoute = SponsorRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvitesRoute = InvitesRouteImport.update({
+  id: '/invites',
+  path: '/invites',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -41,6 +49,16 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardStreaksRoute = DashboardStreaksRouteImport.update({
+  id: '/streaks',
+  path: '/streaks',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardInvitationsRoute = DashboardInvitationsRouteImport.update({
+  id: '/invitations',
+  path: '/invitations',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardStreakIdRoute = DashboardStreakIdRouteImport.update({
   id: '/$streakId',
   path: '/$streakId',
@@ -50,25 +68,34 @@ const DashboardStreakIdRoute = DashboardStreakIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/invites': typeof InvitesRoute
   '/login': typeof LoginRoute
   '/sponsor': typeof SponsorRoute
   '/dashboard/$streakId': typeof DashboardStreakIdRoute
+  '/dashboard/invitations': typeof DashboardInvitationsRoute
+  '/dashboard/streaks': typeof DashboardStreaksRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/invites': typeof InvitesRoute
   '/login': typeof LoginRoute
   '/sponsor': typeof SponsorRoute
   '/dashboard/$streakId': typeof DashboardStreakIdRoute
+  '/dashboard/invitations': typeof DashboardInvitationsRoute
+  '/dashboard/streaks': typeof DashboardStreaksRoute
   '/dashboard': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
+  '/invites': typeof InvitesRoute
   '/login': typeof LoginRoute
   '/sponsor': typeof SponsorRoute
   '/dashboard/$streakId': typeof DashboardStreakIdRoute
+  '/dashboard/invitations': typeof DashboardInvitationsRoute
+  '/dashboard/streaks': typeof DashboardStreaksRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
@@ -76,25 +103,40 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/dashboard'
+    | '/invites'
     | '/login'
     | '/sponsor'
     | '/dashboard/$streakId'
+    | '/dashboard/invitations'
+    | '/dashboard/streaks'
     | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/sponsor' | '/dashboard/$streakId' | '/dashboard'
+  to:
+    | '/'
+    | '/invites'
+    | '/login'
+    | '/sponsor'
+    | '/dashboard/$streakId'
+    | '/dashboard/invitations'
+    | '/dashboard/streaks'
+    | '/dashboard'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
+    | '/invites'
     | '/login'
     | '/sponsor'
     | '/dashboard/$streakId'
+    | '/dashboard/invitations'
+    | '/dashboard/streaks'
     | '/dashboard/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRouteWithChildren
+  InvitesRoute: typeof InvitesRoute
   LoginRoute: typeof LoginRoute
   SponsorRoute: typeof SponsorRoute
 }
@@ -113,6 +155,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invites': {
+      id: '/invites'
+      path: '/invites'
+      fullPath: '/invites'
+      preLoaderRoute: typeof InvitesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -136,6 +185,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/streaks': {
+      id: '/dashboard/streaks'
+      path: '/streaks'
+      fullPath: '/dashboard/streaks'
+      preLoaderRoute: typeof DashboardStreaksRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/invitations': {
+      id: '/dashboard/invitations'
+      path: '/invitations'
+      fullPath: '/dashboard/invitations'
+      preLoaderRoute: typeof DashboardInvitationsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/$streakId': {
       id: '/dashboard/$streakId'
       path: '/$streakId'
@@ -148,11 +211,15 @@ declare module '@tanstack/react-router' {
 
 interface DashboardRouteChildren {
   DashboardStreakIdRoute: typeof DashboardStreakIdRoute
+  DashboardInvitationsRoute: typeof DashboardInvitationsRoute
+  DashboardStreaksRoute: typeof DashboardStreaksRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardStreakIdRoute: DashboardStreakIdRoute,
+  DashboardInvitationsRoute: DashboardInvitationsRoute,
+  DashboardStreaksRoute: DashboardStreaksRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 
@@ -163,6 +230,7 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  InvitesRoute: InvitesRoute,
   LoginRoute: LoginRoute,
   SponsorRoute: SponsorRoute,
 }

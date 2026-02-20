@@ -64,6 +64,14 @@ export const streakApi = {
   createSolo: (name: string) =>
     api.post<{ streak: Streak }>("/streaks/solo", { name }),
 
+  createDuo: (name: string, partnerPubkey: string) =>
+    api.post<{ streak: Streak }>("/streaks/duo", { name, partnerPubkey }),
+
+  respondToInvitation: (
+    action: "accept" | "decline",
+    params: { token?: string; streakId?: string },
+  ) => api.put(`/streaks/duo-invitation/respond`, { action, ...params }),
+
   deleteStreak: (streakId: string) => api.delete(`/streaks/${streakId}`),
 
   getSettings: (streakId: string) =>
@@ -79,11 +87,10 @@ export const streakApi = {
 
   getUnreadLogs: () => api.get<{ logs: LogEntry[] }>("/streaks/logs/unread"),
 
-  acknowledgeLogs: (streakId: string, logsId: string) =>
-    api.patch(`/streaks/${streakId}/logs/${logsId}/acknowledge`, { logsId }),
+  acknowledgeLogs: (logsId: string) =>
+    api.patch(`/streaks/logs/acknowledge`, { logsId }),
 
-  markAllLogsAsRead: (streakId: string) =>
-    api.patch(`/streaks/${streakId}/logs/mark-read`),
+  markAllLogsAsRead: () => api.patch(`/streaks/logs/mark-read`),
 };
 
 // Types
@@ -93,6 +100,8 @@ export interface Streak {
   name: string;
   user1Pubkey: string;
   user2Pubkey: string | null;
+  inviterPubKey: string | null;
+  inviteStatus: "none" | "pending" | "accepted" | "declined" | null;
   status: "pending" | "active" | "broken";
   currentCount: number;
   highestCount: number;

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Flame, Clock, ArrowRight, Check } from "lucide-react";
+import { Flame, Clock, ArrowRight, Check, Users, Info } from "lucide-react";
 import { type Streak } from "@/lib/api";
 import { CountdownTimer } from "./CountdownTimer";
 
@@ -16,8 +16,14 @@ function isWindowCompleted(streak: Streak): boolean {
   );
 }
 
+function truncatePubkey(pubkey: string): string {
+  return pubkey.slice(0, 8) + "..." + pubkey.slice(-4);
+}
+
 export function StreakCard({ streak }: StreakCardProps) {
   const completed = isWindowCompleted(streak);
+  const isDuo = streak.type === "duo";
+
   const statusStyles: Record<string, { dot: string; badge: string }> = {
     active: {
       dot: "bg-status-gentle",
@@ -45,16 +51,29 @@ export function StreakCard({ streak }: StreakCardProps) {
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-brand-500/10 rounded-xl flex items-center justify-center group-hover:bg-brand-500/20 transition-colors">
-              <Flame className="w-5 h-5 text-brand-500" />
+            <div
+              className={`w-10 h-10 ${isDuo ? "bg-brand-400/10" : "bg-brand-500/10"} rounded-xl flex items-center justify-center group-hover:bg-brand-500/20 transition-colors`}
+            >
+              {isDuo ? (
+                <Users className="w-5 h-5 text-brand-400" />
+              ) : (
+                <Flame className="w-5 h-5 text-brand-500" />
+              )}
             </div>
             <div>
               <h3 className="text-sm font-semibold text-foreground group-hover:text-brand-400 transition-colors">
                 {streak.name}
               </h3>
-              <span className="text-[10px] text-muted capitalize">
-                {streak.type}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-muted capitalize">
+                  {streak.type}
+                </span>
+                {isDuo && streak.user2Pubkey && (
+                  <span className="text-[10px] text-subtle font-mono">
+                    · {truncatePubkey(streak.user2Pubkey)}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <span

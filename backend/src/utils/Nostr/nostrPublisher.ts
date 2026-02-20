@@ -1,9 +1,8 @@
 import { nip04, nip19, nip44, SimplePool } from 'nostr-tools';
-import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { useWebSocketImplementation } from 'nostr-tools/pool';
-import { hexToBytes } from 'nostr-tools/utils';
-import { Streaks } from '../../db/schema.ts';
+import { finalizeEvent, generateSecretKey, getPublicKey } from 'nostr-tools/pure';
 import { RELAY_URLS } from '../../config/relay.ts';
+import { Streaks } from '../../db/schema.ts';
 import { generateAbuseMessage } from '../AiRandMsg.ts';
 
 useWebSocketImplementation(WebSocket);
@@ -26,15 +25,15 @@ export async function sendDMReminder(
   try {
     const timeWarning =
       hoursLeft > 0
-        ? `Your streak expires in ~${hoursLeft} hour${hoursLeft > 1 ? 's' : ''}! Post something on Nostr to keep it alive! 📝`
-        : `Your streak has expired! 💀`;
+        ? `Your streak expires in ~${hoursLeft} hour${hoursLeft > 1 ? 's' : ''}! Post something on Nostr to keep it alive! 📝\n(Note: you have a 1-hour grace period after the deadline.)`
+        : `Your streak expires in less than an hour! Post something on Nostr to keep it alive! 📝\n(Note: you have a 1-hour grace period after the deadline.)`;
 
     const message =
       `${await generateAbuseMessage(abuseLevel, { currentCount: streak.currentCount ?? 0, streakName: streak.name }, 'dm')}\n\n` +
-      `Streak: "${streak.name}" — Day ${streak.currentCount ?? 0}\n` +
+      `Streak: "${streak.name}" — Day ${streak.currentCount ?? 0}\n\n` +
       timeWarning;
 
-    return sendNip17DM(targetPubkey, message);
+    return sendNip04DM(targetPubkey, message);
   } catch (error) {
     console.error(`Error sending DM reminder to ${targetPubkey}:`, error);
     return null;
@@ -69,6 +68,10 @@ export const sendPublicTagPost = async (
 
 export async function sendNip17DM(targetPubkey: string, message: string): Promise<string | null> {
   try {
+    // convert to hex string if given npub
+    if (targetPubkey.startsWith('npub')) {
+      targetPubkey = nip19.decode(targetPubkey).data as string;
+    }
     const rumor = {
       kind: 14,
       created_at: Math.floor(Date.now() / 1000),
@@ -83,7 +86,7 @@ export async function sendNip17DM(targetPubkey: string, message: string): Promis
     const seal = finalizeEvent(
       {
         kind: 13,
-        created_at: randomTimeOffset(),
+        created_at: Math.floor(Date.now() / 1000),
         tags: [],
         content: encryptedRumor,
       },
@@ -97,15 +100,16 @@ export async function sendNip17DM(targetPubkey: string, message: string): Promis
     const giftWrap = finalizeEvent(
       {
         kind: 1059,
-        created_at: randomTimeOffset(),
+        created_at: Math.floor(Date.now() / 1000),
         tags: [['p', targetPubkey]],
         content: encryptedSeal,
       },
       randomSk
     );
 
-    await Promise.any(pool.publish(RELAY_URLS, giftWrap));
+    await Promise.all(pool.publish(RELAY_URLS, giftWrap));
     console.log(`NIP-17 DM sent to ${targetPubkey}`);
+    console.log(`${nip19.npubEncode(targetPubkey)}`);
     return giftWrap.id;
   } catch (error) {
     console.error(`Failed to send NIP-17 DM:`, error);
@@ -113,11 +117,32 @@ export async function sendNip17DM(targetPubkey: string, message: string): Promis
   }
 }
 
-/**
- * Randomize timestamp by ±2 days to hide metadata
- */
-function randomTimeOffset(): number {
-  const twoDays = 2 * 24 * 60 * 60;
-  const offset = Math.floor(Math.random() * twoDays) - twoDays;
-  return Math.floor(Date.now() / 1000) + offset;
+export async function sendNip04DM(targetPubkey: string, message: string): Promise<string | null> {
+  try {
+    // Convert npub → hex
+    if (targetPubkey.startsWith('npub')) {
+      targetPubkey = nip19.decode(targetPubkey).data as string;
+    }
+
+    // Encrypt message using NIP-04
+    const encryptedContent = await nip04.encrypt(botSk, targetPubkey, message);
+
+    const event = finalizeEvent(
+      {
+        kind: 4,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['p', targetPubkey]],
+        content: encryptedContent,
+      },
+      botSk
+    );
+
+    await Promise.all(pool.publish(RELAY_URLS, event));
+
+    console.log(`NIP-04 DM sent to ${targetPubkey}`);
+    return event.id;
+  } catch (error) {
+    console.error('Failed to send NIP-04 DM:', error);
+    return null;
+  }
 }

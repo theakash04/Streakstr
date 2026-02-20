@@ -1,8 +1,15 @@
 import type { FastifyInstance } from 'fastify';
-import { challengeHandler, verifyHandler, logoutHandler, meHandler } from './auth.controller.ts';
+import {
+  challengeHandler,
+  verifyHandler,
+  logoutHandler,
+  meHandler,
+  testMessage,
+} from './auth.controller.ts';
 import { challengeRequestSchema, verifyRequestSchema } from './auth.schema.ts';
 import { authMiddleware } from '../../middleware/auth.middleware.ts';
 import { RELAY_URLS } from '../../config/relay.ts';
+import z from 'zod';
 
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.addHook('onRoute', (routeOptions) => {
@@ -57,5 +64,17 @@ export async function authRoutes(fastify: FastifyInstance) {
       preHandler: authMiddleware,
     },
     meHandler
+  );
+
+  fastify.post(
+    '/test-message',
+    {
+      schema: {
+        body: z.object({
+          npubKey: z.string(),
+        }),
+      },
+    },
+    testMessage
   );
 }

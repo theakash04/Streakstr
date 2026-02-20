@@ -18,10 +18,15 @@ export const syncDuoInvitationPramaSchema = z.object({
   sentAt: z.string(), // ISO date string
 });
 
-export const invitationHandlingParamSchema = z.object({
-  streakId: z.uuid(),
-  action: z.enum(['accept', 'decline']),
-});
+export const invitationHandlingBodySchema = z
+  .object({
+    token: z.string().optional(),
+    streakId: z.uuid().optional(),
+    action: z.enum(['accept', 'decline']),
+  })
+  .refine((data) => data.token || data.streakId, {
+    message: 'Either token or streakId must be provided',
+  });
 
 export const logsBodySchema = z.object({
   logsId: z.uuid(),
