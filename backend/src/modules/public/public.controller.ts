@@ -7,13 +7,12 @@ import { getUserFromRelays } from '../../utils/Nostr/nostrQueries.ts';
 
 export async function GetLeaderboard(req: FastifyRequest, reply: FastifyReply) {
   try {
-    // const cacheKey = 'leaderboard:top10';
-    // const cachedData = await redis.get(cacheKey);
-    // console.log(JSON.parse(cachedData!));
+    const cacheKey = 'leaderboard:top10';
+    const cachedData = await redis.get(cacheKey);
 
-    // if (cachedData) {
-    //   return reply.status(200).send({ leaderboard: JSON.parse(cachedData) });
-    // }
+    if (cachedData) {
+      return reply.status(200).send({ leaderboard: JSON.parse(cachedData) });
+    }
 
     const leaderboard = await db
       .select()
