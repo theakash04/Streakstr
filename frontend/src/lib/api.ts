@@ -91,6 +91,17 @@ export const streakApi = {
     api.patch(`/streaks/logs/acknowledge`, { logsId }),
 
   markAllLogsAsRead: () => api.patch(`/streaks/logs/mark-read`),
+
+  getInteractions: (timeframe: "weekly" | "monthly" | "all" = "weekly") =>
+    api.get<{ interactions: InteractionStat[] }>("/streaks/interactions", {
+      params: { timeframe },
+    }),
+};
+
+// Public API calls
+export const publicApi = {
+  getLeaderboard: () =>
+    api.get<{ leaderboard: LeaderboardEntry[] }>("/public/leaderboard"),
 };
 
 // Types
@@ -155,4 +166,40 @@ export interface LogEntry {
   description: string | null;
   createdAt: string;
   acknowledged: boolean;
+}
+
+export interface LeaderboardEntry {
+  userInfo: {
+    name?: string;
+    display_name?: string;
+    picture?: string;
+    banner?: string;
+    website?: string;
+    about?: string;
+    nip05?: string;
+    lud16?: string;
+    lud06?: string;
+    pubkey?: string;
+    is_deleted?: boolean;
+  } | null;
+  currentCount: number;
+}
+
+export interface InteractionStat {
+  pubkey: string;
+  stats: {
+    notes: number;
+    replies: number;
+    reactions: number;
+    zaps: number;
+    total: number;
+  };
+  userInfo: {
+    name?: string;
+    display_name?: string;
+    picture?: string;
+    nip05?: string;
+    lud16?: string;
+    pubkey?: string;
+  } | null;
 }

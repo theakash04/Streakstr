@@ -4,7 +4,6 @@ import {
   verifyHandler,
   logoutHandler,
   meHandler,
-  testMessage,
 } from './auth.controller.ts';
 import { challengeRequestSchema, verifyRequestSchema } from './auth.schema.ts';
 import { authMiddleware } from '../../middleware/auth.middleware.ts';
@@ -64,17 +63,5 @@ export async function authRoutes(fastify: FastifyInstance) {
       preHandler: authMiddleware,
     },
     meHandler
-  );
-
-  fastify.post(
-    '/test-message',
-    {
-      schema: {
-        body: z.object({
-          npubKey: z.string(),
-        }),
-      },
-    },
-    testMessage
   );
 }

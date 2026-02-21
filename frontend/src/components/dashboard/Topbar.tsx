@@ -8,6 +8,8 @@ import {
   Home,
   ExternalLink,
   BadgeCheck,
+  Trophy,
+  Users,
 } from "lucide-react";
 import { streakApi, type LogEntry } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
@@ -99,6 +101,22 @@ export function DashboardTopbar({ pubkey, user }: TopbarProps) {
           </Link>
 
           <div className="h-5 w-px bg-outline hidden sm:block" />
+
+          <Link
+            to="/leaderboard"
+            className="flex items-center gap-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
+          >
+            <Trophy className="w-4 h-4" />
+            <span className="hidden sm:inline">Leaderboard</span>
+          </Link>
+
+          <Link
+            to="/dashboard/interactions"
+            className="flex items-center gap-2 text-sm font-medium text-muted hover:text-foreground transition-colors"
+          >
+            <Users className="w-4 h-4" />
+            <span className="hidden sm:inline">Interactions</span>
+          </Link>
         </div>
 
         {/* Right: Actions */}

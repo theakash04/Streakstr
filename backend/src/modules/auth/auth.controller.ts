@@ -111,8 +111,3 @@ export async function meHandler(request: FastifyRequest, reply: FastifyReply) {
   });
 }
 
-export async function testMessage(req: FastifyRequest, res: FastifyReply) {
-  const { npubKey } = req.body as { npubKey: string };
-  await sendNip04DM(npubKey, 'Hello World testing from nip04');
-  res.send('Message sent');
-}

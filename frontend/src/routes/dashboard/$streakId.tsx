@@ -146,9 +146,12 @@ function StreakDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 self-end sm:self-auto">
-          {streak.status !== "pending" && streak.status !== "broken" && (
+          {streak.status !== "broken" && (
             <button
-              onClick={() => setShowSettings(!showSettings)}
+              onClick={() => {
+                console.log("Settings clicked");
+                setShowSettings(!showSettings);
+              }}
               className="p-2.5 rounded-xl bg-surface border border-outline hover:bg-outline hover:text-foreground transition-colors cursor-pointer"
             >
               <Settings className="w-5 h-5 text-muted" />

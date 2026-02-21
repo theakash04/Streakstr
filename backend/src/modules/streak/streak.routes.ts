@@ -12,6 +12,7 @@ import {
   invitationHandling,
   markAllLogsAsRead,
   updateStreakSettings,
+  getInteractions,
 } from './streak.controller.ts';
 import {
   DuoStreakBodySchema,
@@ -22,6 +23,7 @@ import {
   StreaksSettingUpdateBodySchema,
   syncDuoInvitationPramaSchema,
   UserActivityQuerySchema,
+  InteractionsQuerySchema,
 } from './streak.schema.ts';
 
 export async function streakRoutes(fastify: FastifyInstance) {
@@ -140,5 +142,17 @@ export async function streakRoutes(fastify: FastifyInstance) {
       },
     },
     getUserActivity
+  );
+
+  fastify.get(
+    '/interactions',
+    {
+      schema: {
+        querystring: InteractionsQuerySchema,
+        description:
+          'Get top 10 most interacted users for the authenticated user based on a timeframe (weekly, monthly, all).',
+      },
+    },
+    getInteractions
   );
 }

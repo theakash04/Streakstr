@@ -13,6 +13,8 @@ const KEYS = {
   botFollower: (pubkey: string) => `follower:${pubkey}`,
   /** Solo streaks for /stats → JSON array */
   soloStreaks: (pubkey: string) => `streaks:solo:${pubkey}`,
+  /** Top 10 interactions stats → JSON array */
+  interactions: (pubkey: string) => `interactions:${pubkey}`,
   /** Reminder already sent for this streak+target+deadline window → "1" */
   reminderSent: (streakId: string, targetPubkey: string, deadline: string) =>
     `reminder:sent:${streakId}:${targetPubkey}:${deadline}`,
@@ -24,6 +26,7 @@ const TTL = {
   windowCompleted: 86400, // 24 hours — valid for the current window
   botFollower: 3600, // 1 hour
   soloStreaks: 300, // 5 minutes
+  interactions: 3600, // 1 hour - cached to avoid spamming relays
 } as const;
 
 // ── Active Streaks by pubkey ──
@@ -156,5 +159,6 @@ export async function invalidateAllForPubkey(pubkey: string): Promise<void> {
     redis.del(KEYS.activeStreaks(pubkey)),
     redis.del(KEYS.soloStreaks(pubkey)),
     redis.del(KEYS.botFollower(pubkey)),
+    redis.del(KEYS.interactions(pubkey)),
   ]);
 }

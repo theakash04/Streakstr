@@ -252,6 +252,7 @@ export async function processFollowEvent(event: NostrEvent): Promise<void> {
   await db.insert(StreakSettings).values({
     streakId: streak.id,
     dmReminder: true,
+    showInLeaderboard: true,
   });
 
   // send dm to the new follower that the streak is created

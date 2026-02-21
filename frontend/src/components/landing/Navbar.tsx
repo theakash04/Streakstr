@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Flame, HandCoins, Menu, X } from "lucide-react";
+import { Flame, HandCoins, Menu, X, Trophy } from "lucide-react";
 import { Button } from "../ui/Button";
 import ToggleBtn from "../ui/toggleBtn";
 import { Link } from "@tanstack/react-router";
@@ -16,7 +16,10 @@ export const Navbar: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const navLinks = [{ icon: HandCoins, name: "Sponsor", href: "/sponsor" }];
+  const navLinks = [
+    { icon: Trophy, name: "Leaderboard", href: "/leaderboard" },
+    { icon: HandCoins, name: "Sponsor", href: "/sponsor" },
+  ];
 
   return (
     <nav

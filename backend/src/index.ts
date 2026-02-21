@@ -13,6 +13,7 @@ import swagger from '@fastify/swagger';
 import { jsonSchemaTransform } from 'fastify-type-provider-zod';
 import swaggerUi from '@fastify/swagger-ui';
 import { streakRoutes } from './modules/streak/streak.routes.ts';
+import { publicRoutes } from './modules/public/public.routes.ts';
 
 useWebSocketImplementation(WebSocket);
 
@@ -56,6 +57,7 @@ fastify.register(swagger, {
 // Register auth routes
 await fastify.register(authRoutes, { prefix: '/auth' });
 await fastify.register(streakRoutes, { prefix: '/streaks' });
+await fastify.register(publicRoutes, { prefix: '/public' });
 
 fastify.register(swaggerUi, {
   routePrefix: '/docs',

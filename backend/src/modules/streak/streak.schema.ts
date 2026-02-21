@@ -42,3 +42,7 @@ export const StreaksSettingUpdateBodySchema = z.object({
   reminderOffsetHours: z.number().int().min(0).optional(),
   showInLeaderboard: z.boolean().optional(),
 });
+
+export const InteractionsQuerySchema = z.object({
+  timeframe: z.enum(['weekly', 'monthly', 'all']).default('weekly'),
+});
