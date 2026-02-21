@@ -32,9 +32,9 @@ export const Hero: React.FC = () => {
           </h1>
 
           <p className="max-w-2xl mx-auto text-xl text-muted mb-10 leading-relaxed px-2 sm:px-0">
-            Streakstr tracks your daily Nostr activity and turns it into
-            streaks. Post every day. Keep the streak alive. Break it, and
-            everyone knows.
+            Streakstr tracks your daily Nostr activity. Post a note or reply
+            before UTC midnight to keep your streak alive. Break it, and the bot
+            publicly roasts you.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">

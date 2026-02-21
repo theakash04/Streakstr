@@ -19,12 +19,12 @@ export const HowItWorks: React.FC = () => {
     {
       num: "02",
       title: "Post Daily",
-      text: "Post a note or reply within your 24-hour window. Your window is personal to your first post time.",
+      text: "Post a note or reply before the end of the day (UTC). A new window starts at midnight.",
     },
     {
       num: "03",
       title: "Don't Break It",
-      text: "If the timer hits zero without activity, your count resets to 0. No excuses. No mercy.",
+      text: "If the timer hits zero without activity, your streak breaks. You must start a new one from day 0.",
     },
   ];
 
@@ -40,9 +40,8 @@ export const HowItWorks: React.FC = () => {
               How it Works
             </h2>
             <p className="text-muted text-lg mb-8 leading-relaxed">
-              Every streak runs on a rolling 24-hour window. No timezone hassle.
-              Your clock starts when you post — you have until the same time
-              tomorrow.
+              Every streak runs until the end of the next UTC calendar day. Your
+              deadline is always midnight UTC. No timezone hassle.
             </p>
 
             <div className="space-y-8">
