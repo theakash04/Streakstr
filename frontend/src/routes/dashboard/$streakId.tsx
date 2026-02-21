@@ -412,6 +412,7 @@ function StreakDetailPage() {
             streakId={streakId}
             onClose={() => setShowSettings(false)}
             onUpdated={fetchDetail}
+            streakType={streak.type}
           />
         )}
       </AnimatePresence>
@@ -499,11 +500,13 @@ function SettingsPanel({
   streakId,
   onClose,
   onUpdated,
+  streakType,
 }: {
   settings: StreakSettings;
   streakId: string;
   onClose: () => void;
   onUpdated: () => void;
+  streakType: "duo" | "solo";
 }) {
   const [form, setForm] = useState<StreakSettingsUpdate>({
     dmReminder: settings.dmReminder,
@@ -704,40 +707,42 @@ function SettingsPanel({
           <div className="border-t border-outline" />
 
           {/* Visibility */}
-          <div className="space-y-4">
-            <p className="text-[11px] font-semibold text-muted uppercase tracking-wider">
-              Visibility
-            </p>
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground">
-                  Show in Leaderboard
-                </p>
-                <p className="text-xs text-muted mt-0.5">
-                  Display your streak rank publicly
-                </p>
-              </div>
-              <button
-                onClick={() =>
-                  setForm((f) => ({
-                    ...f,
-                    showInLeaderboard: !f.showInLeaderboard,
-                  }))
-                }
-                className={`shrink-0 w-12 h-7 rounded-full transition-all duration-200 cursor-pointer relative ${
-                  form.showInLeaderboard
-                    ? "bg-brand-500 shadow-[0_0_8px_rgba(249,115,22,0.3)]"
-                    : "bg-outline"
-                }`}
-              >
-                <span
-                  className={`absolute top-[3px] w-[22px] h-[22px] bg-white rounded-full transition-all duration-200 shadow-sm ${
-                    form.showInLeaderboard ? "left-[25px]" : "left-[3px]"
+          {streakType === "solo" && (
+            <div className="space-y-4">
+              <p className="text-[11px] font-semibold text-muted uppercase tracking-wider">
+                Visibility
+              </p>
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    Show in Leaderboard
+                  </p>
+                  <p className="text-xs text-muted mt-0.5">
+                    Display your streak rank publicly
+                  </p>
+                </div>
+                <button
+                  onClick={() =>
+                    setForm((f) => ({
+                      ...f,
+                      showInLeaderboard: !f.showInLeaderboard,
+                    }))
+                  }
+                  className={`shrink-0 w-12 h-7 rounded-full transition-all duration-200 cursor-pointer relative ${
+                    form.showInLeaderboard
+                      ? "bg-brand-500 shadow-[0_0_8px_rgba(249,115,22,0.3)]"
+                      : "bg-outline"
                   }`}
-                />
-              </button>
+                >
+                  <span
+                    className={`absolute top-[3px] w-[22px] h-[22px] bg-white rounded-full transition-all duration-200 shadow-sm ${
+                      form.showInLeaderboard ? "left-[25px]" : "left-[3px]"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer */}
