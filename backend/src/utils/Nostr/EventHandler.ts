@@ -82,7 +82,6 @@ function isInteractionWith(event: NostrEvent, otherPubkey: string): boolean {
 }
 /**
  * Process an interaction event (note, reaction, repost).
- * Uses a rolling 24hr window: each streak has a `deadline`.
  * When activity completes a window → count increments, deadline resets to now + 24hrs.
  */
 export async function processInteractionEvent(event: NostrEvent): Promise<void> {
@@ -134,13 +133,16 @@ export async function processInteractionEvent(event: NostrEvent): Promise<void> 
 
       if (inserted.length === 0) continue; // already completed today
 
+      const nextDay = new Date(eventTime);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
       await db
         .update(Streaks)
         .set({
           currentCount: (streak.currentCount ?? 0) + 1,
           highestCount: Math.max(streak.highestCount ?? 0, (streak.currentCount ?? 0) + 1),
           lastActivityAt: eventTime,
-          deadline: getEndOfTodayUTC(eventTime),
+          deadline: getEndOfTodayUTC(nextDay),
         })
         .where(eq(Streaks.id, streak.id));
 
@@ -184,13 +186,16 @@ export async function processInteractionEvent(event: NostrEvent): Promise<void> 
 
       if (inserted.length === 0) continue; // already completed today
 
+      const nextDay = new Date(eventTime);
+      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+
       await db
         .update(Streaks)
         .set({
           currentCount: (streak.currentCount ?? 0) + 1,
           highestCount: Math.max(streak.highestCount ?? 0, (streak.currentCount ?? 0) + 1),
           lastActivityAt: eventTime,
-          deadline: getEndOfTodayUTC(eventTime),
+          deadline: getEndOfTodayUTC(nextDay),
         })
         .where(eq(Streaks.id, streak.id));
 

@@ -1,8 +1,9 @@
 import { Worker } from 'bullmq';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, lte } from 'drizzle-orm';
 import redis from '../config/redis.ts';
 import { db } from '../db/index.ts';
 import {
+  DailyLogs,
   ReminderLog,
   StreakBreakPost,
   StreakHistory,
@@ -65,6 +66,15 @@ export const reminderWorker = new Worker(
 
         // Only within reminder window
         if (nowMs < reminderMs || nowMs > deadlineMs) continue;
+        const todayUTC = new Date().toISOString().split('T')[0];
+
+        const completedToday = await db
+          .select()
+          .from(DailyLogs)
+          .where(and(eq(DailyLogs.streakId, streak.id), eq(DailyLogs.date, todayUTC)))
+          .limit(1);
+
+        if (completedToday.length > 0) continue;
 
         const deadlineKey = deadline.toISOString();
         const abuseLevel = setting?.abuseLevel ?? 1;
@@ -87,7 +97,8 @@ export const reminderWorker = new Worker(
             redisKey,
             '1',
             'EX',
-            60 * 60 * 24 // 24h TTL
+            60 * 60 * 24, // 24h TTL
+            'NX'
           );
 
           if (!lock) continue;
@@ -138,7 +149,7 @@ export const streakCheckWorker = new Worker(
           status: 'broken',
           endedAt: now,
         })
-        .where(and(eq(Streaks.status, 'active'), lt(Streaks.deadline, graceThreshold)))
+        .where(and(eq(Streaks.status, 'active'), lte(Streaks.deadline, graceThreshold)))
         .returning();
       console.log(updated);
 
@@ -209,12 +220,7 @@ export const streakCheckWorker = new Worker(
             const dedupKey = `${dedupBase}:${target}`;
 
             // Redis-based idempotency with TTL
-            const alreadySent = await redis.set(
-              dedupKey,
-              '1',
-              'EX',
-              60 * 60 * 24 // 24h
-            );
+            const alreadySent = await redis.set(dedupKey, '1', 'EX', 60 * 60 * 24, 'NX');
 
             if (!alreadySent) continue;
 
