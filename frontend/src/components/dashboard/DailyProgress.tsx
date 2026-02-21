@@ -155,7 +155,7 @@ export function DailyProgress({ streaks, onCreateClick }: DailyProgressProps) {
                 <div className="relative z-10 flex items-center gap-2 text-brand-400 mb-4">
                   <Timer className="w-5 h-5" />
                   <span className="text-xs font-bold uppercase tracking-widest">
-                    Next Deadline
+                    Time Left
                   </span>
                 </div>
                 <div className="relative z-10 text-4xl lg:text-3xl font-mono font-black text-foreground drop-shadow-md tracking-tight">
