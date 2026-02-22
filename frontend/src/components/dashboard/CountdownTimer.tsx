@@ -29,13 +29,6 @@ export function CountdownTimer({
     return (
       <div className="text-center">
         <div className="font-bold text-2xl text-status-gentle">Done</div>
-        <p className="text-[10px] text-muted mt-1">
-          Next:{" "}
-          {new Date(deadline).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-          })}
-        </p>
       </div>
     );
   }

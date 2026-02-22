@@ -230,7 +230,7 @@ function StreakDetailPage() {
               <span
                 className={`text-[10px] sm:text-sm font-bold uppercase tracking-widest text-center ${windowCompleted ? "text-status-gentle" : "text-brand-500"}`}
               >
-                {windowCompleted ? "Next Deadline" : "Time Left"}
+                {windowCompleted ? "Status" : "Time Left"}
               </span>
             </div>
 
@@ -326,10 +326,6 @@ function StreakDetailPage() {
                 streak.lastActivityAt ? formatDate(streak.lastActivityAt) : "—"
               }
             />
-            <TimelineItem
-              label="Deadline"
-              value={streak.deadline ? formatDate(streak.deadline) : "—"}
-            />
           </div>
         </motion.div>
 
@@ -360,7 +356,7 @@ function StreakDetailPage() {
               )}
             </div>
             <p className="text-[10px] sm:text-xs font-semibold text-muted mt-3 relative z-10 uppercase tracking-widest">
-              {windowCompleted ? "Next Deadline" : "Time Left"}
+              {windowCompleted ? "Status" : "Time Left"}
             </p>
           </motion.div>
         )}
