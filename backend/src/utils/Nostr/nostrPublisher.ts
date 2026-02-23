@@ -47,7 +47,7 @@ export const sendPublicTagPost = async (
 ): Promise<string | null> => {
   try {
     const npub = nip19.npubEncode(targetPubkey);
-    const message = `${await generateAbuseMessage(abuseLevel, { currentCount: streak.currentCount ?? 0, streakName: streak.name }, 'post')}\n\nStreak: "${streak.name}" - Day ${streak.currentCount ?? 0}\n\nnostr:${npub}`;
+    const message = `${await generateAbuseMessage(abuseLevel, { currentCount: streak.currentCount ?? 0, streakName: streak.name }, 'post')}\n\nnostr:${npub}`;
     const event = finalizeEvent(
       {
         kind: 1,

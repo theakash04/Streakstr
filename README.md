@@ -11,7 +11,7 @@ Streakstr tracks your daily Nostr activity and turns it into streaks. A bot watc
 ### Features
 
 - 📊 **Streak tracking** — automated daily activity monitoring via Nostr relays
-- 🏆 **Leaderboard** — compete with others and climb the ranks _(coming soon)_
+- 🏆 **Leaderboard** — compete with others and climb the ranks
 - 🔐 **Nostr-native auth** — sign in with NIP-07 extensions or NIP-46 remote signers
 - ⏱️ **Countdown timer** — see exactly how much time you have left to keep your streak
 - 🤖 **Bot-powered** — no manual check-ins, the bot watches your posts for you

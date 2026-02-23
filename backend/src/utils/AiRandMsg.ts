@@ -50,7 +50,7 @@ Message type rules:
 - If Post: It should feel like public humiliation humor. No encouragement required. Just funny roast energy.
 
 
-Write only the message text. Keep it under 120 words.
+Write only the message text. Keep it under 200 words.
 `;
 
   try {
@@ -58,7 +58,6 @@ Write only the message text. Keep it under 120 words.
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
-        maxOutputTokens: 300, // roughly 120 words
         temperature: 0.9,
       },
     });
