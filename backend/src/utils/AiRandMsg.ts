@@ -50,7 +50,7 @@ Message type rules:
 - If Post: It should feel like public humiliation humor. No encouragement required. Just funny roast energy.
 
 
-Write only the message text. Keep it under 200 words.
+Write only the message text. Keep it under 100 words.
 `;
 
   try {
